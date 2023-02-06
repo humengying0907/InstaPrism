@@ -47,6 +47,7 @@ bpFixedPoint <- function(bulk, ref, n.iter=20){
   return(list(z=thisXtot,ppguess=ppguess))
 }
 
+
 #' Fast posterior estimation of cell-state fractions and expression
 #' @description Fixed-point implementation of the initial Gibbs sampling step in BayesPrism.
 #'      Returns a list of posterior estimation of cell-state fraction and expression.
@@ -54,9 +55,37 @@ bpFixedPoint <- function(bulk, ref, n.iter=20){
 #' @param ref single cell reference summarized at per cell-type or per cell-state level
 #' @param n.iter number of iterations
 #' @export
-fastPost.ini.cs<-function(bulk_Expr,ref,n.iter=20){
+fastPost.ini.cs<-function(bulk_Expr,ref,n.iter=20,n.core=1){
   cms=intersect(rownames(bulk_Expr),rownames(ref))
-  res.list=apply(bulk_Expr[cms,],2,function(x) bpFixedPoint(bulk=x,ref=ref[cms,],n.iter = n.iter))
+  # res.list=apply(bulk_Expr[cms,],2,function(x) bpFixedPoint(bulk=x,ref=ref[cms,],n.iter = n.iter))
+
+  cl<- parallel::makeCluster(n.core)
+  bpFixedPoint <- function(bulk, ref, n.iter=n.iter){
+    #colSum normalize
+    ref=sweep(ref, 2,colSums(ref),"/")
+    offset=min(ref[ref>0])
+    ref=ref+offset
+    refPnorm=sweep(ref,1, rowSums(ref), "/")
+    ncts=ncol(ref)
+    ppguess=rep(1/ncts, ncts)
+    #rowNorm the reference, the values don't matter here
+
+    for(i in 1:n.iter){
+      #  stop()
+      thisX=sweep(refPnorm, 2, ppguess, "*")
+      thisX=sweep(thisX,1, rowSums(thisX), "/")
+      thisXtot=sweep(thisX,1, bulk, "*")
+      stopifnot(all(!is.null(thisXtot)))
+      ppnew=colSums(thisXtot)
+      ppnew=ppnew/sum(ppnew)
+
+      ppguess=ppnew
+    }
+    names(ppguess)=colnames(ref)
+    return(list(z=thisXtot,ppguess=ppguess))
+  }
+  res.list=parallel::parApply(cl,bulk_Expr[cms,],2,function(x) bpFixedPoint(bulk=x,ref=ref[cms,],n.iter = n.iter))
+  parallel::stopCluster(cl)
   theta=mapply(`[[`, res.list, 2)
   N <- ncol(bulk_Expr)
   G <- length(cms)
@@ -282,15 +311,16 @@ InstaPrism<-function(input_type=c('raw','prism'),
                  outlier.cut=0.01,outlier.fraction=0.1,pseudo.min=1E-8,
                  prismObj=NULL,
                  n.iter=20,
-                 update=T,key=NA,optimizer='MAP',opt.control=NULL){
+                 update=T,key=NA,optimizer='MAP',opt.control=NULL,
+                 n.core=1){
   if(input_type=='raw'){
     bp=bpPrepare(sc_Expr,bulk_Expr,cell_type_labels,cell_state_labels,outlier.cut,outlier.fraction,pseudo.min=pseudo.min)
-    Post.ini.cs=fastPost.ini.cs(bp$bulk_mixture,bp$phi.cs,n.iter)
+    Post.ini.cs=fastPost.ini.cs(bp$bulk_mixture,bp$phi.cs,n.iter,n.core)
     map=bp$map
     bulk_mixture=bp$bulk_mixture
     phi.ct=t(bp$phi.ct)
   }else if(input_type=='prism'){
-    Post.ini.cs=fastPost.ini.cs(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter)
+    Post.ini.cs=fastPost.ini.cs(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter,n.core)
     map=prismObj@map
     bulk_mixture=t(prismObj@mixture)
     phi.ct=prismObj@phi_cellType@phi
@@ -312,7 +342,7 @@ InstaPrism<-function(input_type=c('raw','prism'),
     if(is(updated_phi,'refTumor')){
       Post.updated.ct=fastPost.updated.ct(bulk_mixture,updated_phi)
     }else if(is(updated_phi,'refPhi')){
-      Post.updated.ct=fastPost.ini.cs(bulk_mixture,t(updated_phi@phi))$theta
+      Post.updated.ct=fastPost.ini.cs(bulk_mixture,t(updated_phi@phi),n.iter,n.core)$theta
     }
     return(list(Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct,Post.updated.ct=Post.updated.ct))
   }

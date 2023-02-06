@@ -18,7 +18,8 @@ InstaPrism(
   update = T,
   key = NA,
   optimizer = "MAP",
-  opt.control = NULL
+  opt.control = NULL,
+  n.core = 1
 )
 }
 \arguments{

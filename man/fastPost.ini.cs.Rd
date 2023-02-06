@@ -4,7 +4,7 @@
 \alias{fastPost.ini.cs}
 \title{Fast posterior estimation of cell-state fractions and expression}
 \usage{
-fastPost.ini.cs(bulk_Expr, ref, n.iter = 20)
+fastPost.ini.cs(bulk_Expr, ref, n.iter = 20, n.core = 1)
 }
 \arguments{
 \item{bulk_Expr}{bulk expression (un-log transformed) matrix with genes in rows and samples in columns}

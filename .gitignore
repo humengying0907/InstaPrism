@@ -2,6 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
+.Rbuildignore
+*.Rproj
 inst/doc
 extdata/
 
