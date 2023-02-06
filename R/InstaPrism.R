@@ -1,13 +1,9 @@
-require(dplyr)
-require(NMF)
-require(Matrix)
 
 #' Build reference matrix
 #' @description Sum up expression values over cell groups for a given single expression matrix
 #' @param Expr single cell expression with genes in rows and cells in columns
 #' @param cell_type_labels a character vector indicating cell types/states of each cell
-#' @import Matrix
-#' @import dplyr
+#' @keywords internal
 #' @noRd
 build_ref_matrix<-function(Expr,cell_type_labels){
   stopifnot(ncol(Expr)==length(cell_type_labels))
@@ -24,6 +20,7 @@ build_ref_matrix<-function(Expr,cell_type_labels){
 #' @param bulk bulk expression (un-log transformed) for a single sample
 #' @param ref single cell reference summarized at per cell-type or per cell-state level
 #' @param n.iter number of iterations
+#' @keywords internal
 #' @noRd
 bpFixedPoint <- function(bulk, ref, n.iter=20){
   #colSum normalize
@@ -118,6 +115,7 @@ mergeK_adapted <- function(jointPost.obj,
 #'		in more than outlier.fraction (Default=0.1) of bulk data. Removal of outlier genes will ensure that the inference will not be
 #'		dominated by outliers. These two parameters denote the same thing as in new.prism() function from BayesPrism package.
 #' @param pseudo.min the desired min values to replace zero after normalization
+#' @keywords internal
 #' @noRd
 bpPrepare<-function(sc_Expr,bulk_Expr,
                     cell.type.labels,cell.state.labels,
@@ -157,8 +155,7 @@ bpPrepare<-function(sc_Expr,bulk_Expr,
 #' @param optimizer a character string to denote which algorithm to use
 #' @param opt.control a list containing the parameters to control optimization
 #' @param pseudo.min the desired min values to replace zero after normalization
-#' @import snowfall
-#' @import BayesPrism
+#' @keywords internal
 #' @noRd
 updateReference_adapated <- function(Z,
                                      phi,
@@ -248,7 +245,7 @@ fastPost.updated.ct<-function(bulk_Expr,updated_phi,n.iter=20){
   return(theta)
 }
 
-#' Run fast BayesPrism deconvolution
+#' Run InstaPrism deconvolution
 #' @description A fast version of BayesPrism deconvolution, takes single cell profiles as prior information
 #'      and returns cellular composition estimation for a bulk expression matrix.
 #' @param input_type either 'raw' or 'prism'. With 'raw', need to specify the following input manually:
@@ -276,13 +273,10 @@ fastPost.updated.ct<-function(bulk_Expr,updated_phi,n.iter=20){
 #'
 #' @return a list containing cellular fraction estimates, summarized at both cell type level and cell state level
 #' @details add more detials
-#' @examples
-#' a=rnorm(100)
-#' x=fastBP()
 #' @references ref BayesPrism
 #' @export
 
-fastBP<-function(input_type=c('raw','prism'),
+InstaPrism<-function(input_type=c('raw','prism'),
                  sc_Expr=NULL,bulk_Expr=NULL,
                  cell.type.labels=NULL,cell.state.labels=NULL,
                  outlier.cut=0.01,outlier.fraction=0.1,pseudo.min=1E-8,

@@ -15,6 +15,7 @@ transform.phi_transpose <- function (phi_transpose, gamma){
 
 
 #' function to compute log poserior over gamma_t conditional on mean parameter
+#' @keywords internal
 #' @noRd
 log.mle.gamma <- function (gamma,
 						   phi_transpose,
@@ -33,6 +34,7 @@ log.mle.gamma <- function (gamma,
 
 
 #' function to compute gradient of log poserior over gamma_t conditional on mean parameter
+#' @keywords internal
 #' @noRd
 log.mle.gamma.grad <- function(gamma,
 					   		   phi_transpose,
@@ -52,6 +54,7 @@ log.mle.gamma.grad <- function(gamma,
 
 
 #' function to optimize over gamma using an empiricalBayes-like approach
+#' @keywords internal
 #' @noRd
 optimize.psi.oneGamma <- function(phi,
 					   			  Z_gt,

@@ -1,18 +1,24 @@
 
 
-#' Title
-#'
-#' @param est a
-#' @param true a
-#' @param title a
-#' @param nrow a
+#' Visualize deconvolution performance
+#' @description Visualize per-cell type correlation between true fraction and estimates
+#' @param est cell.type fraction estimation with cell.types in rows and samples in columns
+#' @param true ground truth cell.type fraction with cell.types in rows and samples in columns
+#' @param title title for the plot
+#' @param nrow number of rows in the plot grid
 #' @export
 
 deconv_performance_plot<-function(est,true,title=NULL,nrow=2,xlabel='true fraction',ylabel='estimates'){
+  stopifnot(sum(rownames(true) %in% rownames(est))==nrow(true))
+  require(ggplot2)
+  require(ggpmisc)
+
   est=t(est)
   true=t(true)
 
   est=est[,colnames(true)]
+
+
   m1=gather(true %>% as.data.frame(),cell_type,true_frac)
   m2=gather(est %>% as.data.frame(),maxCorName,estimate)
   M=cbind(m1,m2)

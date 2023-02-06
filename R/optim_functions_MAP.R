@@ -1,6 +1,7 @@
 # optimization function used by the BayesPrism paper (if optimizer="paper")
 
 #' function to compute log(sum(exp(a_1) + exp(a_2) + exp(a_3) + ...))
+#' @keywords internal
 #' @noRd
 logsumexp <- function (x) {
 	y = max(x)
@@ -9,6 +10,7 @@ logsumexp <- function (x) {
 
 
 #' function to compute log poserior over gamma_t
+#' @keywords internal
 #' @noRd
 log.posterior.gamma <- function (gamma_t,
 							     phi_t,
@@ -29,6 +31,7 @@ log.posterior.gamma <- function (gamma_t,
 
 
 #' function to compute gradient of log poserior over gamma_t
+#' @keywords internal
 #' @noRd
 log.posterior.gamma.grad <- function (gamma_t,
 							   		  phi_t,
@@ -51,6 +54,7 @@ log.posterior.gamma.grad <- function (gamma_t,
 
 
 #' function to optimize over gamma
+#' @keywords internal
 #' @noRd
 optimize.psi<-function(phi,
 					   Z_gt,

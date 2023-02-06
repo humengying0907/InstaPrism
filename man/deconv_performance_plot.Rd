@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot.R
 \name{deconv_performance_plot}
 \alias{deconv_performance_plot}
-\title{Title}
+\title{Visualize deconvolution performance}
 \usage{
 deconv_performance_plot(
   est,
@@ -14,14 +14,14 @@ deconv_performance_plot(
 )
 }
 \arguments{
-\item{est}{a}
+\item{est}{cell.type fraction estimation with cell.types in rows and samples in columns}
 
-\item{true}{a}
+\item{true}{ground truth cell.type fraction with cell.types in rows and samples in columns}
 
-\item{title}{a}
+\item{title}{title for the plot}
 
-\item{nrow}{a}
+\item{nrow}{number of rows in the plot grid}
 }
 \description{
-Title
+Visualize per-cell type correlation between true fraction and estimates
 }

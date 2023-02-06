@@ -1,18 +1,26 @@
-Package: fastBP
+Package: InstaPrism
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Fast implementaion of cell type and gene expression deconvolution
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: Mengying Hu, Maria Chikina
+Maintainer: Mengying <mhu5304@gmail.com>
+Description: InstaPrism is R package to deconvolute cellular proportion and gene expression in bulk RNA-Seq data. It is based on a Bayesian inference model from BayesPrism. InstaPrism provides fast implementation of the deconvolution module from BayesPrism: it replaces the time-consuming gibbs sampling steps in BayesPrism with a fixed-point algorithm that greatly accelerated the calculation speed while maintaining similar performance as BayesPrism. 
+License: GPL-2 | GPL-3
 Encoding: UTF-8
 LazyData: true
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    BayesPrism,
+    snowfall,
+    ggplot2,
+    ggpmisc
 VignetteBuilder: knitr
 RoxygenNote: 7.2.1
 Depends: 
-    R (>= 2.10)
+    R (>= 3.5.0),
+    dplyr,
+    tidyr,
+    Matrix,
+    caret,
+    NMF
