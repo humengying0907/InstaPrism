@@ -15,10 +15,11 @@ InstaPrism(
   pseudo.min = 1e-08,
   prismObj = NULL,
   n.iter = 20,
-  update = T,
+  update = F,
   key = NA,
   optimizer = "MAP",
   opt.control = NULL,
+  return.Z = F,
   n.core = 1
 )
 }
@@ -49,7 +50,7 @@ dominated by outliers. This parameter denotes the same thing as in new.prism() f
 \item{n.iter}{number of iterations in the fixed-point implementation of BayesPrism}
 
 \item{update}{a logical variable to denote whether return deconvolution result with the updated theta
-This parameter denotes the same thing as in the run.prism() function from BayesPrism.}
+This parameter denotes the same thing as in the run.prism() function from BayesPrism. Default=F.}
 
 \item{key}{a charater string to denote the word that corresponds to the malignant cell type, belongs to names(map)
 set to NULL if there is no malignant cells in the problem.}
@@ -58,6 +59,10 @@ set to NULL if there is no malignant cells in the problem.}
 This parameter denotes the same thing as in the updateReference() function from BayesPrism.}
 
 \item{opt.control}{a list containing the parameters to control optimization}
+
+\item{return.Z}{a logical variable determining whether to return cell.state&type specific expression, default=FALSE}
+
+\item{n.core}{number of cores to use for parallel programming. Default = 1}
 }
 \value{
 a list containing cellular fraction estimates, summarized at both cell type level and cell state level

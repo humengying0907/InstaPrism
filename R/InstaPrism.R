@@ -293,12 +293,14 @@ fastPost.updated.ct<-function(bulk_Expr,updated_phi,n.iter=20){
 #' @param prismObj a Prism object, required when input_type='prism'
 #' @param n.iter number of iterations in the fixed-point implementation of BayesPrism
 #' @param update a logical variable to denote whether return deconvolution result with the updated theta
-#'      This parameter denotes the same thing as in the run.prism() function from BayesPrism.
+#'      This parameter denotes the same thing as in the run.prism() function from BayesPrism. Default=F.
 #' @param key a charater string to denote the word that corresponds to the malignant cell type, belongs to names(map)
 #'		  set to NULL if there is no malignant cells in the problem.
 #' @param optimizer a character string to denote which algorithm to use. Can be either "MAP" or "MLE".
 #'      This parameter denotes the same thing as in the updateReference() function from BayesPrism.
 #' @param opt.control a list containing the parameters to control optimization
+#' @param return.Z a logical variable determining whether to return cell.state&type specific expression, default=FALSE
+#' @param n.core number of cores to use for parallel programming. Default = 1
 #'
 #' @return a list containing cellular fraction estimates, summarized at both cell type level and cell state level
 #' @details add more detials
@@ -311,10 +313,11 @@ InstaPrism<-function(input_type=c('raw','prism'),
                  outlier.cut=0.01,outlier.fraction=0.1,pseudo.min=1E-8,
                  prismObj=NULL,
                  n.iter=20,
-                 update=T,key=NA,optimizer='MAP',opt.control=NULL,
+                 update=F,key=NA,optimizer='MAP',opt.control=NULL,
+                 return.Z=F,
                  n.core=1){
   if(input_type=='raw'){
-    bp=bpPrepare(sc_Expr,bulk_Expr,cell_type_labels,cell_state_labels,outlier.cut,outlier.fraction,pseudo.min=pseudo.min)
+    bp=bpPrepare(sc_Expr,bulk_Expr,cell.type.labels,cell.state.labels,outlier.cut,outlier.fraction,pseudo.min=pseudo.min)
     Post.ini.cs=fastPost.ini.cs(bp$bulk_mixture,bp$phi.cs,n.iter,n.core)
     map=bp$map
     bulk_mixture=bp$bulk_mixture
@@ -327,7 +330,11 @@ InstaPrism<-function(input_type=c('raw','prism'),
   }
   Post.ini.ct=mergeK_adapted(Post.ini.cs,map=map)
   if(update==F){
-    return(list(Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct))
+    if(return.Z==T){
+      return(list(Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct))
+    }else{
+      return(list(Post.ini.cs=Post.ini.cs['theta'],Post.ini.ct=Post.ini.ct['theta']))
+    }
   }else if(update==T){
     if(is.null(opt.control)){
       opt.control <- valid.opt.control(list())
@@ -344,7 +351,11 @@ InstaPrism<-function(input_type=c('raw','prism'),
     }else if(is(updated_phi,'refPhi')){
       Post.updated.ct=fastPost.ini.cs(bulk_mixture,t(updated_phi@phi),n.iter,n.core)$theta
     }
-    return(list(Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct,Post.updated.ct=Post.updated.ct))
+    if(return.Z==T){
+      return(list(Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct,Post.updated.ct=Post.updated.ct))
+    }else{
+      return(list(Post.ini.cs=Post.ini.cs['theta'],Post.ini.ct=Post.ini.ct['theta'],Post.updated.ct=Post.updated.ct))
+    }
   }
 }
 

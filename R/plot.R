@@ -6,6 +6,8 @@
 #' @param true ground truth cell.type fraction with cell.types in rows and samples in columns
 #' @param title title for the plot
 #' @param nrow number of rows in the plot grid
+#' @param xlabel xlabel of the plot
+#' @param ylabel ylabel of the plot
 #' @export
 
 deconv_performance_plot<-function(est,true,title=NULL,nrow=2,xlabel='true fraction',ylabel='estimates'){

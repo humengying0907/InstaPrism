@@ -21,6 +21,10 @@ deconv_performance_plot(
 \item{title}{title for the plot}
 
 \item{nrow}{number of rows in the plot grid}
+
+\item{xlabel}{xlabel of the plot}
+
+\item{ylabel}{ylabel of the plot}
 }
 \description{
 Visualize per-cell type correlation between true fraction and estimates
