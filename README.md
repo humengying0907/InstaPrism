@@ -10,8 +10,9 @@ install_github("humengying0907/InstaPrism")
 Below is a running time comparsion when running deconvolution on the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) 
 provided in BayesPrism. 
 
-![fig4](https://user-images.githubusercontent.com/54827603/219703956-f56c88e0-e1ca-49ef-b76d-115eb9ec1da5.png)
+![fig4](https://user-images.githubusercontent.com/54827603/219739883-1b5c4f3b-e2cb-4843-a9d1-10e0381b17f8.png)
+
 
 
 ## Tutorial
-Check the [InstaPrism_tumorial](https://humengying0907.github.io/InstaPrism_tutorial.html) for details.
+Check [InstaPrism_tumorial](https://humengying0907.github.io/InstaPrism_tutorial.html) for detailed implementation of InstaPrism and compare its performance with BayesPrism.
