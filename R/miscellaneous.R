@@ -1,10 +1,11 @@
 #' function to validate opt.control
 #' @param control a named list of parameters required to control optimization
+#' @keywords internal
 #' @noRd
-valid.opt.control <- function(control){
+valid.opt.control <- function(control,snowfall.ncore = 1){
 
   ctrl <- list(maxit = 100000, maximize = FALSE, trace = 0, eps = 1e-07,
-               dowarn = TRUE, tol=0, maxNA=500, n.cores=1, optimizer="MAP", sigma=2)
+               dowarn = TRUE, tol=0, maxNA=500, n.cores=snowfall.ncore, optimizer="MAP", sigma=2)
   namc <- names(control)
 
   if (!all(namc %in% names(ctrl)))
@@ -34,6 +35,7 @@ valid.opt.control <- function(control){
 #' @param ref a unnormalized matrix of dimension K*G (with rownames and colnames supplied)
 #' @param pseudo.min the desired min values to replace zero after normalization
 #' return a normalized matrix of the same dimension
+#' @keywords internal
 #' @noRd
 norm.to.one <- function(ref,
                         pseudo.min){
@@ -59,6 +61,7 @@ norm.to.one <- function(ref,
 #' @param mixture the bulk RNA-seq matrix (#of samples * # of genes).
 #' @param outlier.cut & outlier.fraction: Filter genes in mixture whose expression fraction is greater than outlier.cut
 #'		in more than outlier.fraction of bulk data. Removal of outlier genes will ensure that the inference will not be dominated by outliers.
+#' @keywords internal
 #' @noRd
 filter.bulk.outlier <- function(mixture,
                                 outlier.cut,

@@ -15,78 +15,23 @@ build_ref_matrix<-function(Expr,cell_type_labels){
   C
 }
 
-#' Fixed-point implementation of the Gibbs sampling step for a single sample
-#'
-#' @param bulk bulk expression (un-log transformed) for a single sample
-#' @param ref single cell reference summarized at per cell-type or per cell-state level
-#' @param n.iter number of iterations
-#' @keywords internal
-#' @noRd
-bpFixedPoint <- function(bulk, ref, n.iter=20){
-  #colSum normalize
-  ref=sweep(ref, 2,colSums(ref),"/")
-  offset=min(ref[ref>0])
-  ref=ref+offset
-  refPnorm=sweep(ref,1, rowSums(ref), "/")
-  ncts=ncol(ref)
-  ppguess=rep(1/ncts, ncts)
-  #rowNorm the reference, the values don't matter here
-
-  for(i in 1:n.iter){
-    #  stop()
-    thisX=sweep(refPnorm, 2, ppguess, "*")
-    thisX=sweep(thisX,1, rowSums(thisX), "/")
-    thisXtot=sweep(thisX,1, bulk, "*")
-    stopifnot(all(!is.null(thisXtot)))
-    ppnew=colSums(thisXtot)
-    ppnew=ppnew/sum(ppnew)
-
-    ppguess=ppnew
-  }
-  names(ppguess)=colnames(ref)
-  return(list(z=thisXtot,ppguess=ppguess))
-}
-
-
 #' Fast posterior estimation of cell-state fractions and expression
 #' @description Fixed-point implementation of the initial Gibbs sampling step in BayesPrism.
 #'      Returns a list of posterior estimation of cell-state fraction and expression.
 #' @param bulk_Expr bulk expression (un-log transformed) matrix with genes in rows and samples in columns
 #' @param ref single cell reference summarized at per cell-type or per cell-state level
-#' @param n.iter number of iterations
+#' @param n.iter number of iterations.
+#' @param n.core number of cores to use for parallel programming. Default = 1
 #' @export
-fastPost.ini.cs<-function(bulk_Expr,ref,n.iter=20,n.core=1){
+fastPost.ini.cs.cpp<-function(bulk_Expr,ref,n.iter=20,n.core=1){
   cms=intersect(rownames(bulk_Expr),rownames(ref))
-  # res.list=apply(bulk_Expr[cms,],2,function(x) bpFixedPoint(bulk=x,ref=ref[cms,],n.iter = n.iter))
-
+  ref=ref[cms,]
   cl<- parallel::makeCluster(n.core)
-  bpFixedPoint <- function(bulk, ref, n.iter=n.iter){
-    #colSum normalize
-    ref=sweep(ref, 2,colSums(ref),"/")
-    offset=min(ref[ref>0])
-    ref=ref+offset
-    refPnorm=sweep(ref,1, rowSums(ref), "/")
-    ncts=ncol(ref)
-    ppguess=rep(1/ncts, ncts)
-    #rowNorm the reference, the values don't matter here
-
-    for(i in 1:n.iter){
-      #  stop()
-      thisX=sweep(refPnorm, 2, ppguess, "*")
-      thisX=sweep(thisX,1, rowSums(thisX), "/")
-      thisXtot=sweep(thisX,1, bulk, "*")
-      stopifnot(all(!is.null(thisXtot)))
-      ppnew=colSums(thisXtot)
-      ppnew=ppnew/sum(ppnew)
-
-      ppguess=ppnew
-    }
-    names(ppguess)=colnames(ref)
-    return(list(z=thisXtot,ppguess=ppguess))
-  }
-  res.list=parallel::parApply(cl,bulk_Expr[cms,],2,function(x) bpFixedPoint(bulk=x,ref=ref[cms,],n.iter = n.iter))
+  res.list=parallel::parApply(cl,bulk_Expr[cms,],2,function(x) InstaPrism:::bpFixedPointCPP(bulk=matrix(x),ref=ref,n_iter = n.iter))
   parallel::stopCluster(cl)
-  theta=mapply(`[[`, res.list, 2)
+
+  theta=mapply(`[[`, res.list, 1)
+  rownames(theta)=colnames(ref)
   N <- ncol(bulk_Expr)
   G <- length(cms)
   K <- ncol(ref)
@@ -94,22 +39,24 @@ fastPost.ini.cs<-function(bulk_Expr,ref,n.iter=20,n.core=1){
           dim = c(N,G,K),
           dimnames=list(colnames(bulk_Expr), cms, colnames(ref)))
   for (n in 1:N){
-    Z[n,,]=res.list[[n]]$z
+    Z[n,,]=res.list[[n]]$perCell
   }
-  return(list(Z=Z,theta=theta))
+
+  return(new('posterior',theta=theta,Z=Z))
 }
+
 
 #' Merge posterior information over cell states
 #' @describeIn Function to merge posterior information over cell states within each cell type
-#' @param jointPost.obj a jointPost.obj returned by fastPost.ini.cs() function
+#' @param jointPost.obj an S4 posterior object returned by fastPost.ini.cs() function
 #' @param map a list of the format list(cell.type1=c(cell.stateA, cell.stateB), ...)
 #' @export
 mergeK_adapted <- function(jointPost.obj,
                            map){
 
-  bulkID <- dimnames(jointPost.obj$Z)[[1]]
-  geneID <- dimnames(jointPost.obj$Z)[[2]]
-  cellType <- dimnames(jointPost.obj$Z)[[3]]
+  bulkID <- dimnames(jointPost.obj@Z)[[1]]
+  geneID <- dimnames(jointPost.obj@Z)[[2]]
+  cellType <- dimnames(jointPost.obj@Z)[[3]]
   cellType.merged <- names(map)
 
   N <- length(bulkID)
@@ -123,15 +70,15 @@ mergeK_adapted <- function(jointPost.obj,
              dim = c(N, G, K_merged),
              dimnames=list(bulkID, geneID, cellType.merged))
 
-  theta.cs=jointPost.obj$theta
+  theta.cs=jointPost.obj@theta
   theta.ct <- do.call(rbind,lapply(map,function(x)colSums(theta.cs[rownames(theta.cs) %in% x,,drop=F])))
 
   for (k in 1:K_merged){
     cellType.merged.k <- names(map)[k]
     cellTypes.k <- map[[k]]
-    Z[,, cellType.merged.k] <- rowSums(jointPost.obj$Z[,,cellTypes.k, drop=F], dims=2)
+    Z[,, cellType.merged.k] <- rowSums(jointPost.obj@Z[,,cellTypes.k, drop=F], dims=2)
   }
-  return(list(Z=Z,theta=theta.ct))
+  return(new('posterior',theta=theta.ct,Z=Z))
 }
 
 
@@ -171,7 +118,12 @@ bpPrepare<-function(sc_Expr,bulk_Expr,
     i=which(cell.type.labels==ct)
     map[[ct]]=unique(cell.state.labels[i])
   }
-  return(list(phi.cs=ref.cs,phi.ct=ref.ct,bulk_mixture=bulk_Expr[cms,],map=map))
+
+  return(new("bpPrepare",
+             phi.cs=ref.cs,
+             phi.ct=ref.ct,
+             bulk_mixture=bulk_Expr[cms,],
+             map=map))
 }
 
 #' function that updates the reference matrix based on initial theta
@@ -257,28 +209,37 @@ updateReference_adapated <- function(Z,
 #' @param bulk_Expr bulk expression matrix to deconvolute
 #' @param updated_phi updated reference
 #' @param n.iter number of iteration
+#' @param n.core number of cores to use for parallel programming. Default = 1
 #' @export
-fastPost.updated.ct<-function(bulk_Expr,updated_phi,n.iter=20){
+fastPost.updated.ct.cpp<-function(bulk_Expr,updated_phi,n.iter=20, n.core=1){
   # for refTumor only
   stopifnot(nrow(bulk_Expr)==ncol(updated_phi@psi_mal))
   psi_mal=updated_phi@psi_mal
   psi_env=updated_phi@psi_env
-  theta=matrix(NA,ncol = ncol(bulk_Expr),nrow = (nrow(psi_env)+1))
-  colnames(theta)=colnames(bulk_Expr)
-  rownames(theta)=c(updated_phi@key,rownames(psi_env))
-  for (n in 1:ncol(bulk_Expr)){
+  N = ncol(bulk_Expr)
+
+  wrap=function(n){
     ref=t(rbind(psi_mal[n,], psi_env))
     colnames(ref)[1]=updated_phi@key
-    theta[,n]=bpFixedPoint(bulk_Expr[,n],ref,n.iter = n.iter)$ppguess
+    pp = InstaPrism:::bpFixedPointCPP(matrix(bulk_Expr[,n]),ref,n_iter = n.iter)$pp
   }
-  return(theta)
+
+  cl<- parallel::makeCluster(n.core)
+  theta=do.call(cbind,parallel::parLapply(cl,sapply(1:N, list),wrap))
+  parallel::stopCluster(cl)
+
+  colnames(theta)=colnames(bulk_Expr)
+  rownames(theta)=c(updated_phi@key,rownames(psi_env))
+
+
+  return(new('theta',theta=theta))
 }
 
 #' Run InstaPrism deconvolution
 #' @description A fast version of BayesPrism deconvolution, takes single cell profiles as prior information
 #'      and returns cellular composition estimation for a bulk expression matrix.
 #' @param input_type either 'raw' or 'prism'. With 'raw', need to specify the following input manually:
-#'       sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels.
+#'       sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels
 #' @param sc_Expr single cell expression matrix, with genes in rows and cells in columns
 #' @param bulk_Expr bulk expression to deconvolute, with genes in rows and samples in columns
 #' @param cell.type.labels a character vector indicating cell types of each cell in sc_Expr
@@ -289,73 +250,96 @@ fastPost.updated.ct<-function(bulk_Expr,updated_phi,n.iter=20){
 #' @param outlier.fraction Filter genes in bulk mixture whose expression fraction is greater than outlier.cut (Default=0.01)
 #'		  in more than outlier.fraction (Default=0.1) of bulk data. Removal of outlier genes will ensure that the inference will not be
 #'		  dominated by outliers. This parameter denotes the same thing as in new.prism() function from BayesPrism package.
-#' @param pseudo.min the desired min values to replace zero after normalization
+#' @param pseudo.min the desired min values to replace zero after normalization. Default = 1E-8
 #' @param prismObj a Prism object, required when input_type='prism'
-#' @param n.iter number of iterations in the fixed-point implementation of BayesPrism
-#' @param update a logical variable to denote whether return deconvolution result with the updated theta
-#'      This parameter denotes the same thing as in the run.prism() function from BayesPrism. Default=F.
-#' @param key a charater string to denote the word that corresponds to the malignant cell type, belongs to names(map)
-#'		  set to NULL if there is no malignant cells in the problem.
-#' @param optimizer a character string to denote which algorithm to use. Can be either "MAP" or "MLE".
+#' @param n.iter number of iterations in the fixed-point implementation of BayesPrism. Default = 20, set a number greater than number of cell.states is recommended
+#' @param update a logical variable to denote whether return deconvolution result with the updated theta. When True,
+#'      InstaPrism will implement the updateReference module from Bayesprism. Default=F.
+#' @param key a charater string to denote the word that corresponds to the malignant cell type, need to be define when update=T.
+#'		  Set to NULL if there is no malignant cells in the problem
+#' @param optimizer a character string to denote which algorithm to use. Can be either "MAP" or "MLE", required when update=T.
 #'      This parameter denotes the same thing as in the updateReference() function from BayesPrism.
-#' @param opt.control a list containing the parameters to control optimization
-#' @param return.Z a logical variable determining whether to return cell.state&type specific expression, default=FALSE
+#' @param opt.control a list containing the parameters to control optimization. Set opt.control = NULL for default settings as from package BayesPrism
+#' @param return.Z.cs a logical variable determining whether to return cell.state specific gene expression, use default=FALSE to save memory
+#' @param return.Z.ct a logical variable determining whether to return cell.type specific gene expression, use default=FALSE to save memory
 #' @param n.core number of cores to use for parallel programming. Default = 1
+#' @param snowfall.ncore number of cores to use for reference update. Default = 1
 #'
 #' @return a list containing cellular fraction estimates, summarized at both cell type level and cell state level
-#' @details add more detials
-#' @references ref BayesPrism
 #' @export
 
 InstaPrism<-function(input_type=c('raw','prism'),
                  sc_Expr=NULL,bulk_Expr=NULL,
                  cell.type.labels=NULL,cell.state.labels=NULL,
-                 outlier.cut=0.01,outlier.fraction=0.1,pseudo.min=1E-8,
+                 outlier.cut=0.01,outlier.fraction=0.1,pseudo.min=1E-8,key=NA,
                  prismObj=NULL,
                  n.iter=20,
-                 update=F,key=NA,optimizer='MAP',opt.control=NULL,
-                 return.Z=F,
-                 n.core=1){
+                 update=F,optimizer='MAP',opt.control=NULL,
+                 return.Z.cs=F,
+                 return.Z.ct=F,
+                 n.core=1,
+                 snowfall.ncore=1){
   if(input_type=='raw'){
     bp=bpPrepare(sc_Expr,bulk_Expr,cell.type.labels,cell.state.labels,outlier.cut,outlier.fraction,pseudo.min=pseudo.min)
-    Post.ini.cs=fastPost.ini.cs(bp$bulk_mixture,bp$phi.cs,n.iter,n.core)
-    map=bp$map
-    bulk_mixture=bp$bulk_mixture
-    phi.ct=t(bp$phi.ct)
+    Post.ini.cs=fastPost.ini.cs.cpp(bp@bulk_mixture,bp@phi.cs,n.iter,n.core)
+    map=bp@map
+    bulk_mixture=bp@bulk_mixture
+    phi.ct=t(bp@phi.ct)
   }else if(input_type=='prism'){
-    Post.ini.cs=fastPost.ini.cs(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter,n.core)
+    Post.ini.cs=fastPost.ini.cs.cpp(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter,n.core)
+
     map=prismObj@map
     bulk_mixture=t(prismObj@mixture)
     phi.ct=prismObj@phi_cellType@phi
+    key=prismObj@key
   }
+
   Post.ini.ct=mergeK_adapted(Post.ini.cs,map=map)
-  if(update==F){
-    if(return.Z==T){
-      return(list(Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct))
-    }else{
-      return(list(Post.ini.cs=Post.ini.cs['theta'],Post.ini.ct=Post.ini.ct['theta']))
+
+  if(return.Z.cs==T){
+    Post.ini.cs = Post.ini.cs
+
+    if (nrow(Post.ini.cs@theta)>10 & update==T){
+      warning('R memory limit warning: too much data in memory, set return.Z.cs = F to save memory')
     }
+
+  }else{
+
+    Post.ini.cs = new('theta',theta=Post.ini.cs@theta)
+  }
+  gc()
+
+  if(update==F){
+    if(return.Z.ct==F){
+      Post.ini.ct = new('theta',theta = Post.ini.ct@theta)
+    }
+    return(new('InstaPrism',Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct))
+
   }else if(update==T){
     if(is.null(opt.control)){
-      opt.control <- valid.opt.control(list())
+      opt.control <- valid.opt.control(list(),snowfall.ncore)
     }
-    updated_phi=updateReference_adapated(Z = Post.ini.ct$Z,
+
+    updated_phi=updateReference_adapated(Z = Post.ini.ct@Z,
                                          phi = phi.ct,
                                          map=map,
                                          key=key,
                                          optimizer=optimizer,
                                          opt.control=opt.control,
                                          pseudo.min=pseudo.min)
+    gc()
+
     if(is(updated_phi,'refTumor')){
-      Post.updated.ct=fastPost.updated.ct(bulk_mixture,updated_phi)
+      message('deconvolution with the updated reference (using refTumor)')
+      Post.updated.ct=fastPost.updated.ct.cpp(bulk_mixture,updated_phi,n.iter,n.core)
     }else if(is(updated_phi,'refPhi')){
-      Post.updated.ct=fastPost.ini.cs(bulk_mixture,t(updated_phi@phi),n.iter,n.core)$theta
+      message('deconvolution with the updated reference (using refPhi)')
+      Post.updated.ct=new('theta',theta=fastPost.ini.cs.cpp(bulk_mixture,t(updated_phi@phi),n.iter,n.core)@theta)
     }
-    if(return.Z==T){
-      return(list(Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct,Post.updated.ct=Post.updated.ct))
-    }else{
-      return(list(Post.ini.cs=Post.ini.cs['theta'],Post.ini.ct=Post.ini.ct['theta'],Post.updated.ct=Post.updated.ct))
+    if(return.Z.ct==F){
+      Post.ini.ct = new('theta',theta = Post.ini.ct@theta)
     }
+    return(new('InstaPrismExtra',Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct,Post.updated.ct=Post.updated.ct))
   }
 }
 

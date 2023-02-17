@@ -94,14 +94,14 @@ table(cell_state_labels)
 
 #### Step 3. Run deconvolution with InstaPrism and BayesPrism 
 \ 
-We first consider a simple implementation where we use prior information from the scRNA Seq directly, without the need to update reference.
+We first consider a simple implementation where we use prior information from the scRNA Seq directly, without the need to update reference. 
 
 i. Run InstaPrism with raw input. In this mode, users don't need to have BayesPrism installed.
 ```{r,results='hide',message=FALSE}
 start.time = Sys.time()
 InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = sc_Expr,bulk_Expr = bulk_Expr,
-                    cell.type.labels = cell_type_labels, cell.state.labels = cell_state_labels,
-                    update=F,key='Neurons',return.Z = T)
+                    cell.type.labels = cell_type_labels,cell.state.labels = cell_state_labels,
+                    update=F, return.Z.cs = T, return.Z.ct  = T)
 end.time=Sys.time()
 InstaPrism_mode1_running_time = difftime(end.time, start.time,units = 'secs') %>% as.numeric()
 ```
@@ -115,17 +115,17 @@ start.time = Sys.time()
 bp.obj = new.prism(reference = t(sc_Expr),input.type = 'count.matrix',
                    cell.type.labels = cell_type_labels, cell.state.labels = cell_state_labels,
                    key = 'Neurons',mixture = t(bulk_Expr))
-InstaPrism.res2 = InstaPrism(input_type = 'prism',prismObj = bp.obj,update=F,return.Z = T)
+InstaPrism.res2 = InstaPrism(input_type = 'prism',prismObj = bp.obj,update=F,return.Z.cs = T,return.Z.ct  = T)
 end.time=Sys.time()
 InstaPrism_mode2_running_time = difftime(end.time, start.time,units = 'secs') %>% as.numeric()
 ```
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;With update = F (default setting), InstaPrism function returns the following objects:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;With update = F (default setting), InstaPrism function returns an S4 object containing the following objects:
 
 * Post.ini.cs: posterior information for cell.states
-    + Z: a three dimension array indicating gene expression of each cell.state in different individual (returned when `return.Z=T`, default = F)
+    + Z: a three dimension array indicating gene expression of each cell.state in different individual (returned when `return.Z.cs=T`, default = F)
     + theta: cell.state fraction estimates for each individual
 * Post.ini.ct: posterior information for cell.types
-    + Z: a three dimension array indicating gene expression of each cell.types in different individual (returned when `return.Z=T`, default = F)
+    + Z: a three dimension array indicating gene expression of each cell.types in different individual (returned when `return.Z.ct=T`, default = F)
     + theta: cell.types fraction estimates for each individual
   
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Note that InstaPrism with both input types produce the same results
@@ -140,7 +140,7 @@ start.time = Sys.time()
 bp.res = run.prism(bp.obj,update.gibbs = F)
 end.time=Sys.time()
 bp_running_time = difftime(end.time, start.time,units = 'secs') %>% as.numeric()
-# save(bp.res,bp_running_time,file='extdata/tutorial_example1/bp.res.initial.RData')
+save(bp.res,bp_running_time,file='extdata/tutorial_example1/bp.res.initial.RData')
 ```
 \ 
 
@@ -156,7 +156,7 @@ load('extdata/tutorial_example1/bp.res.initial.RData')
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;We provide a useful function `deconv_performance_plot()` that visualize correlations at per-cell.type level. From the plot, InstaPrism accurately predicts cellular proportions from sim.data
 
 ```{r,fig.align='center',fig.width=10,fig.height=2.35}
-deconv_performance_plot(est = InstaPrism.res$Post.ini.ct$theta,true = sim.data$props,title = 'InstaPrism performance on sim.data',nrow=1)
+deconv_performance_plot(est = InstaPrism.res@Post.ini.ct@theta,true = sim.data$props,title = 'InstaPrism performance on sim.data',nrow=1)
 ```
 
 * compare cell type fraction estimates from InstaPrism and BayesPrism
@@ -164,7 +164,7 @@ deconv_performance_plot(est = InstaPrism.res$Post.ini.ct$theta,true = sim.data$p
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;We can visualize the correlation between two fraction estimates with a heatmap. As shown by the heatmap, cell.type estimates from both methods are highly correlated 
 
 ```{r}
-corr=cor(t(InstaPrism.res$Post.ini.ct$theta),bp.res@posterior.initial.cellType@theta)
+corr=cor(t(InstaPrism.res@Post.ini.ct@theta),bp.res@posterior.initial.cellType@theta)
 diag(corr)
 ```
 ```{r,fig.align='center',fig.height=3.65,fig.width=4.5}
@@ -178,8 +178,8 @@ ComplexHeatmap::Heatmap(corr,show_row_dend = F,show_column_dend = F,column_title
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; In the following plots, we showed the correlation between cell,type specific gene expression values (Z matrix) between BayesPrism and InstaPrim for one bulk sample. The plots suggest that the Z matrix estimates by both methods is highly correlated.
 
-```{r,fig.align='center',fig.width=12,fig.height=2.7}
-deconv_performance_plot(t(InstaPrism.res$Post.ini.ct$Z[1,,]),t(bp.res@posterior.initial.cellType@Z[1,,]),nrow = 1,title = 'correlation between cell.type specific gene expression \n',xlabel = 'BayesPrism',ylabel = 'InstaPrism')
+```{r,fig.align='center',fig.width=12,fig.height=2.8}
+deconv_performance_plot(t(InstaPrism.res@Post.ini.ct@Z[1,,]),t(bp.res@posterior.initial.cellType@Z[1,,]),nrow = 1,title = 'correlation between cell.type specific gene expression \n',xlabel = 'BayesPrism',ylabel = 'InstaPrism')
 ```
 
 
@@ -206,11 +206,12 @@ We now consider a more advanced deconvolution problem where we want to leverage 
 
 This step is implemented in BayesPrism by setting `update.gibbs = TRUE` in `run.prism()` function, or by calling the `update.theta()` function on the initial deconvoluton object. In **InstaPrism**, we concatenated the `update.theta()` module from BayesPrism and replaced the subsequent Gibbs Sampling step with our fixed-point alogirthm. \
 
-Note that to run deconvolution with the updated reference, users need to have BayesPrism installed. 
+Note that to run deconvolution with the updated reference, users need to have BayesPrism installed. We also need to specif the `key` parameter to denote how to update reference. 
 
 
 i. deconvolution with InstaPrism
 ```{r,warning=FALSE}
+library(BayesPrism)
 start.time = Sys.time()
 InstaPrism.res.updated = InstaPrism(input_type = 'raw',sc_Expr = sc_Expr,bulk_Expr = bulk_Expr,
                     cell.type.labels = cell_type_labels, cell.state.labels = cell_state_labels,
@@ -218,15 +219,16 @@ InstaPrism.res.updated = InstaPrism(input_type = 'raw',sc_Expr = sc_Expr,bulk_Ex
 end.time=Sys.time()
 InstaPrism_updated_running_time = difftime(end.time, start.time,units = 'secs') %>% as.numeric()
 ```
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;With update = T, InstaPrism function returns the following objects:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;With update = T, InstaPrism function returns an S4 object containing the following information:
 
 * Post.ini.cs: posterior information for cell.states
-    + Z: a three dimension array indicating gene expression of each cell.state in different individual (returned when `return.Z=T`, default = F)
+    + Z: a three dimension array indicating gene expression of each cell.state in different individual (returned when `return.Z.cs=T`, default = F)
     + theta: cell.state fraction estimates for each individual
 * Post.ini.ct: posterior information for cell.types
-    + Z: a three dimension array indicating gene expression of each cell.types in different individual (returned when `return.Z=T`, default = F)
+    + Z: a three dimension array indicating gene expression of each cell.types in different individual (returned when `return.Z.ct=T`, default = F)
     + theta: cell.types fraction estimates for each individual
 * Post.updated.ct: cell.type fraction estimates using updated reference
+    + theta: cell.types fraction estimates for each individual with updated refernce
 
 
 ii. deconvolution with BayesPrism
@@ -250,7 +252,7 @@ load('extdata/tutorial_example1/bp.res.updated.RData')
 ```
 
 ```{r}
-corr=cor(t(InstaPrism.res.updated$Post.updated.ct),bp.res.updated@posterior.theta_f@theta)
+corr=cor(t(InstaPrism.res.updated@Post.updated.ct@theta),bp.res.updated@posterior.theta_f@theta)
 diag(corr)
 ```
 ```{r,fig.align='center',fig.height=3.65,fig.width=4.5}
@@ -342,18 +344,17 @@ load('extdata/tutorial_example2/bp.res.RData')
 
 #### Step 2. Run InstaPrism 
 
-For full comparison between BayesPrism and InstaPrism, set `update=T` to get cell.type fraction estimates with updated reference.\
+For full comparison between BayesPrism and InstaPrism, set `update=T` to get cell.type fraction estimates with updated reference. Meanwhile, we will set `n.core = 16` for parallel calculation and `snowfall.ncore = 16` for parallel reference update. \
 
-Note that the following example takes about 15 mins to run from our end. To skip the process, users can download our processed data from zenoto repository (will update later) or accelerate the process by setting `update=F`. \
+As an additional note, we recommend the users to set `return.Z.cs = F` when `update=T`, this will prevent potential out-of-memory issues.\
 
 ```{r,eval=FALSE}
 library(BayesPrism)
 start.time = Sys.time()
-InstaPrism.res = InstaPrism(input_type = 'prism',prismObj = bp.res@prism,update=T,n.iter = 100,n.core=16) 
+InstaPrism.res = InstaPrism(input_type = 'prism',prismObj = bp.res@prism,update=T,n.iter = 100,n.core=16,snowfall.ncore = 16) 
 # alternatively, users can use myPrism (constructed in the previous example) as a substitute of bp.res@prism; or run InstaPrism under 'raw' mode by specifying corresponding arguments
 end.time=Sys.time()
 InstaPrism_running_time = difftime(end.time, start.time,units = 'mins') %>% as.numeric()
-save(InstaPrism.res,InstaPrism_running_time,file = 'extdata/tutorial_example2/InstaPrism.res.RData')
 ```
 
 For comparison of initial fraction estimates only, set `update=F`. (Note that by setting `update=F`, we no longer have the `Post.updated.ct` object.)\
@@ -366,7 +367,7 @@ InstaPrism_running_time2 = difftime(end.time, start.time,units = 'mins') %>% as.
 save(InstaPrism.res,InstaPrism_running_time,InstaPrism_running_time2,file = 'extdata/tutorial_example2/InstaPrism.res.RData')
 ```
 
-Alternatively, download our processed results
+Alternatively, users can download our processed results
 ```{r,warning=FALSE}
 load('extdata/tutorial_example2/InstaPrism.res.RData')
 ```
@@ -382,14 +383,14 @@ We can find that across 73 different cell.states, most of the fraction estimates
 
 ```{r,fig.align='center',fig.width=5.7,fig.height=3.9}
 # organize different cell.states in the tutorial data
-PJ.cs=data.frame(cs=rownames(InstaPrism.res$Post.ini.cs$theta))
+PJ.cs=data.frame(cs=rownames(InstaPrism.res@Post.ini.cs@theta))
 PJ.cs$group=ifelse(grepl('tumor',PJ.cs$cs),'malignant','immune/others')
 PJ.cs$tumor=ifelse(PJ.cs$group=='malignant',sub("\\-.*", "", PJ.cs$cs),'immune/others')
 PJ.cs$tumor=ifelse(PJ.cs$group=='malignant',paste0(PJ.cs$tumor,'-malignant'),'immune/others')
 PJ.cs=PJ.cs[order(PJ.cs$group,decreasing = T),]
 
 # get correlation between cell.state fraction estimates
-cs.corr=cor(t(InstaPrism.res$Post.ini.cs$theta[PJ.cs$cs,]),bp.res@posterior.initial.cellState@theta[,PJ.cs$cs])
+cs.corr=cor(t(InstaPrism.res@Post.ini.cs@theta[PJ.cs$cs,]),bp.res@posterior.initial.cellState@theta[,PJ.cs$cs])
 
 # visualize
 library(RColorBrewer)
@@ -402,7 +403,7 @@ ComplexHeatmap::Heatmap(cs.corr,show_row_dend = F,show_column_dend = F,column_ti
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;While there's inconsistency between two methods at per cell.state levels, by aggregating cell.state to cell.type levels, two methods provide exactly the same deconvolution results. 
 ```{r,fig.align='center',fig.height=3.4,fig.width=4.25}
-ct.corr=cor(t(InstaPrism.res$Post.ini.ct$theta),bp.res@posterior.initial.cellType@theta) %>% round(1)
+ct.corr=cor(t(InstaPrism.res@Post.ini.ct@theta),bp.res@posterior.initial.cellType@theta) %>% round(1)
 
 ComplexHeatmap::Heatmap(ct.corr,show_row_dend = F,show_column_dend = F,column_title = 'BayesPrism',row_title = 'InstaPrism',name='correlation', cell_fun = function(j, i, x, y, w, h, col) {grid::grid.text(ct.corr[i, j], x, y)})
 ```
@@ -428,7 +429,7 @@ ggplot(rt,aes(method,time))+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;We note that InstaPrism does not produce exactly the same cell.type fraction estimation with the updated reference, this is because the updated reference is sensitive to the Z matrix values, affecting the subsequent cell.type fraction estimation. \
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;We recommend the readers to implement InstaPrism by setting `update=F` in real practice, as it's less time-consuming while maintaining good performance. 
 ```{r}
-ct.corr.updated=cor(t(InstaPrism.res$Post.updated.ct),bp.res@posterior.theta_f@theta)
+ct.corr.updated=cor(t(InstaPrism.res@Post.updated.ct@theta),bp.res@posterior.theta_f@theta)
 diag(ct.corr.updated)
 ```
 
@@ -464,7 +465,7 @@ InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr 
 
 #### Step 3. Compare InstaPrism results with real cell.type fractions
 ```{r,fig.align='center',fig.width=10,fig.height=4.5,message=FALSE}
-deconv_performance_plot(est = InstaPrism.res$Post.ini.ct$theta,true = t(simulated_frac),title = 'InstaPrism performance on heterogenously simulated bulk data',nrow=2)
+deconv_performance_plot(est = InstaPrism.res@Post.ini.ct@theta,true = t(simulated_frac),title = 'InstaPrism performance on heterogenously simulated bulk data',nrow=2)
 ```
 InstaPrism achieves reasonable cell.type estimates for the simulated bulk samples.\
 

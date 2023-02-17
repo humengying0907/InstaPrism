@@ -13,19 +13,21 @@ InstaPrism(
   outlier.cut = 0.01,
   outlier.fraction = 0.1,
   pseudo.min = 1e-08,
+  key = NA,
   prismObj = NULL,
   n.iter = 20,
   update = F,
-  key = NA,
   optimizer = "MAP",
   opt.control = NULL,
-  return.Z = F,
-  n.core = 1
+  return.Z.cs = F,
+  return.Z.ct = F,
+  n.core = 1,
+  snowfall.ncore = 1
 )
 }
 \arguments{
 \item{input_type}{either 'raw' or 'prism'. With 'raw', need to specify the following input manually:
-sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels.}
+sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels}
 
 \item{sc_Expr}{single cell expression matrix, with genes in rows and cells in columns}
 
@@ -43,26 +45,30 @@ dominated by outliers. This parameter denotes the same thing as in new.prism() f
 in more than outlier.fraction (Default=0.1) of bulk data. Removal of outlier genes will ensure that the inference will not be
 dominated by outliers. This parameter denotes the same thing as in new.prism() function from BayesPrism package.}
 
-\item{pseudo.min}{the desired min values to replace zero after normalization}
+\item{pseudo.min}{the desired min values to replace zero after normalization. Default = 1E-8}
+
+\item{key}{a charater string to denote the word that corresponds to the malignant cell type, need to be define when update=T.
+Set to NULL if there is no malignant cells in the problem}
 
 \item{prismObj}{a Prism object, required when input_type='prism'}
 
-\item{n.iter}{number of iterations in the fixed-point implementation of BayesPrism}
+\item{n.iter}{number of iterations in the fixed-point implementation of BayesPrism. Default = 20, set a number greater than number of cell.states is recommended}
 
-\item{update}{a logical variable to denote whether return deconvolution result with the updated theta
-This parameter denotes the same thing as in the run.prism() function from BayesPrism. Default=F.}
+\item{update}{a logical variable to denote whether return deconvolution result with the updated theta. When True,
+InstaPrism will implement the updateReference module from Bayesprism. Default=F.}
 
-\item{key}{a charater string to denote the word that corresponds to the malignant cell type, belongs to names(map)
-set to NULL if there is no malignant cells in the problem.}
-
-\item{optimizer}{a character string to denote which algorithm to use. Can be either "MAP" or "MLE".
+\item{optimizer}{a character string to denote which algorithm to use. Can be either "MAP" or "MLE", required when update=T.
 This parameter denotes the same thing as in the updateReference() function from BayesPrism.}
 
-\item{opt.control}{a list containing the parameters to control optimization}
+\item{opt.control}{a list containing the parameters to control optimization. Set opt.control = NULL for default settings as from package BayesPrism}
 
-\item{return.Z}{a logical variable determining whether to return cell.state&type specific expression, default=FALSE}
+\item{return.Z.cs}{a logical variable determining whether to return cell.state specific gene expression, use default=FALSE to save memory}
+
+\item{return.Z.ct}{a logical variable determining whether to return cell.type specific gene expression, use default=FALSE to save memory}
 
 \item{n.core}{number of cores to use for parallel programming. Default = 1}
+
+\item{snowfall.ncore}{number of cores to use for reference update. Default = 1}
 }
 \value{
 a list containing cellular fraction estimates, summarized at both cell type level and cell state level
@@ -70,10 +76,4 @@ a list containing cellular fraction estimates, summarized at both cell type leve
 \description{
 A fast version of BayesPrism deconvolution, takes single cell profiles as prior information
      and returns cellular composition estimation for a bulk expression matrix.
-}
-\details{
-add more detials
-}
-\references{
-ref BayesPrism
 }

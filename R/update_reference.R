@@ -2,6 +2,7 @@
 
 #' function to check convergence and print error code if there is any
 #' @param opt.res a list optimization results
+#' @keywords internal
 #' @noRd
 check.converge <- function(opt.res){
 	converge.code <- sapply(opt.res, "[[", "convergence")
@@ -24,6 +25,7 @@ check.converge <- function(opt.res){
 #' @param phi_t a numeric vector of length G (sums up to one)
 #' @param gamma_t a numeric vector of length G
 #' @return a numeric vector of length G (sums up to one)
+#' @keywords internal
 #' @noRd
 transform.phi_t <- function (phi_t, gamma_t){
 
@@ -39,6 +41,7 @@ transform.phi_t <- function (phi_t, gamma_t){
 #' @param phi a numeric matrix of dimension T*G (each row sums up to one)
 #' @param gamma a numeric matrix of dimension T*G
 #' @return a numeric matrix of dimension T*G (each row sums up to one)
+#' @keywords internal
 #' @noRd
 transform.phi <- function (phi, gamma){
 
@@ -56,6 +59,7 @@ transform.phi <- function (phi, gamma){
 #' @param Z_ng_mal a numeric matrix of dimension N*G
 #' @param pseudo.min minimum value used to adjust zero entries
 #' @return a numeric matrix of dimension N*G
+#' @keywords internal
 #' @noRd
 get.MLE.psi_mal <- function(Z_ng_mal,
 							pseudo.min){
@@ -80,6 +84,7 @@ get.MLE.psi_mal <- function(Z_ng_mal,
 #' @param sigma a numeric value required if algo="paper"
 #' @param opt.control a list containing the parameters to control optimization
 #' @return an S$ object of the class "reference". More specifically returns the refPhi class if key=NULL, else return the refTumor class.
+#' @keywords internal
 #' @noRd
 updateReference <- function(Z,
 							phi_prime,

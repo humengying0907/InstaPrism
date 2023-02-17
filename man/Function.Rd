@@ -7,7 +7,7 @@
 mergeK_adapted(jointPost.obj, map)
 }
 \arguments{
-\item{jointPost.obj}{a jointPost.obj returned by fastPost.ini.cs() function}
+\item{jointPost.obj}{an S4 posterior object returned by fastPost.ini.cs() function}
 
 \item{map}{a list of the format list(cell.type1=c(cell.stateA, cell.stateB), ...)}
 }

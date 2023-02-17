@@ -6,4 +6,8 @@
 inst/doc
 extdata/
 InstaPrism.Rproj
+src/*.o
+src/*.so
+src/*.dll
+
 
