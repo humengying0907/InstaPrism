@@ -59,6 +59,8 @@ setClass('InstaPrismExtra',slots = c(Post.ini.cs='posterior.obj',
 #' @slot phi a matrix of dimension K*G,
 #'		rownames are cell state/type names; colnames are gene IDs/names
 #' @slot pseudo.min the desired minimum value used to normalize phi.
+#' @keywords internal
+#' @noRd
 setClass("refPhi",
          slots = c(
            phi = "matrix",
@@ -95,6 +97,8 @@ setClass("refPhi",
 #'		rownames are non-malignant cell types; colnames are gene IDs/names
 #' @slot key a character variable to denote the names for malignant cells
 #' @slot pseudo.min the desired minimum value used to normalize phi.
+#' @keywords internal
+#' @noRd
 setClass("refTumor",
          slots = c(
            psi_mal = "matrix",
