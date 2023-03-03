@@ -51,16 +51,16 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
     #  Date:  April 2, 2009; revised July 28, 2009
     #################################################################
     # control defaults -- idea from spg
-    
+
     #edited by Tinyi add maxRst
-    ctrl <- list(maxit = 500, maximize = FALSE, trace = 0, eps = 1e-07, 
+    ctrl <- list(maxit = 500, maximize = FALSE, trace = 0, eps = 1e-07,
         dowarn = TRUE, tol=0, maxNA=500)
     namc <- names(control)
-    if (!all(namc %in% names(ctrl))) 
+    if (!all(namc %in% names(ctrl)))
         stop("unknown names in control: ", namc[!(namc %in% names(ctrl))])
     ctrl[namc] <- control
     npar<-length(par)
-    if (ctrl$tol == 0) tol <- npar * (npar * .Machine$double.eps)  # for gradient test.  
+    if (ctrl$tol == 0) tol <- npar * (npar * .Machine$double.eps)  # for gradient test.
     # Note -- integer overflow if npar*npar*.Machine$double.eps
     else tol<-ctrl$tol
     maxit <- ctrl$maxit  # limit on function evaluations
@@ -69,9 +69,9 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
     #edited by Tinyi
     maxNA <- ctrl$maxNA
 
-    
-    
-    if (trace > 2) 
+
+
+    if (trace > 2)
         cat("trace = ", trace, "\n")
     eps <- ctrl$eps
     fargs <- list(...)  # the ... arguments that are extra function / gradient data
@@ -88,7 +88,7 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
     # gr MUST be provided
     if (grNULL) {
     ##   require(numDeriv) # in NAMESPACE
-       if (control$dowarn) 
+       if (control$dowarn)
           warning("A NULL gradient function is being replaced by numDeriv 'grad()'for Rcgmin")
        if (ctrl$trace > 1) {
            cat("Using following function in numDeriv grad()\n")
@@ -119,7 +119,7 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
     # This does not appear to be in Y H Dai & Y Yuan, Annals of
     #   Operations Research 103, 33–47, 2001 aor01.pdf
     # in Alg 22 pascal, we can set this as user. Do we wish to allow that?
-    ##    tol <- n * (n * .Machine$double.eps)  # # for gradient test.  
+    ##    tol <- n * (n * .Machine$double.eps)  # # for gradient test.
     ## Note -- integer overflow if n*n*d.eps
     fargs <- list(...)  # function arguments
     if (trace > 2) {
@@ -138,17 +138,17 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
     }
     if (class(f) == "try-error") {
         msg <- "Initial point is infeasible."
-        if (trace > 0) 
+        if (trace > 0)
             cat(msg, "\n")
         ans <- list(par, NA, c(ifn, 0), 2, msg)
-        names(ans) <- c("par", "value", "counts", "convergence", 
+        names(ans) <- c("par", "value", "counts", "convergence",
             "message")
         return(ans)
     }
     fmin <- f
-    if (trace > 0) 
+    if (trace > 0)
         cat("Initial fn=", f, "\n")
-    if (trace > 2) 
+    if (trace > 2)
         print(bvec)
     # Start the minimization process
     keepgoing <- TRUE
@@ -162,39 +162,39 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
         # main loop -- must remember to break out of it!!
         t <- as.vector(rep(0, n))  # zero step vector
         c <- t  # zero 'last' gradient
-        
+
         while (keepgoing && (cycle < cyclimit) && (naD.num < maxNA)) {
             ## cycle loop
             cycle <- cycle + 1
-            
+
             fdiff.old <- fdiff
-            
-            if (trace > 0) 
-                cat(ifn, " ", ig, " ", cycle, " ", fmin, "  last decrease=", 
+
+            if (trace > 0)
+                cat(ifn, " ", ig, " ", cycle, " ", fmin, "  last decrease=",
                   fdiff, "\n")
             if (trace > 2) {
                 print(bvec)
                 cat("\n")
             }
             if (ifn > maxfeval) {
-                msg <- paste("Too many function evaluations (> ", 
+                msg <- paste("Too many function evaluations (> ",
                   maxfeval, ") ", sep = "")
-                if (trace > 0) 
+                if (trace > 0)
                   cat(msg, "\n")
                 ans <- list(par, fmin, c(ifn, ig), 1, msg)  # 1 indicates not converged in function limit
-                names(ans) <- c("par", "value", "counts", "convergence", 
+                names(ans) <- c("par", "value", "counts", "convergence",
                   "message")
                 return(ans)
             }
             par <- bvec  # save best parameters
             ig <- ig + 1
             if (ig > maxit) {
-                msg <- paste("Too many gradient evaluations (> ", 
+                msg <- paste("Too many gradient evaluations (> ",
                   maxit, ") ", sep = "")
-                if (trace > 0) 
+                if (trace > 0)
                   cat(msg, "\n")
                 ans <- list(par, fmin, c(ifn, ig), 1, msg)  # 1 indicates not converged in function or gradient limit
-                names(ans) <- c("par", "value", "counts", "convergence", 
+                names(ans) <- c("par", "value", "counts", "convergence",
                   "message")
                 return(ans)
             }
@@ -203,7 +203,7 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
             g2 <- sum(t * (g - c))  # oldsearch * grad-difference
             gradsqr <- sum(g * g)
             if (trace > 1) {
-                cat("Gradsqr = ", gradsqr, " g1, g2 ", g1, " ", 
+                cat("Gradsqr = ", gradsqr, " g1, g2 ", g1, " ",
                   g2, " fmin=", fmin, "\n")
             }
             c <- g  # save last gradient
@@ -216,19 +216,19 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
                 }
             }
             else {
-                msg <- paste("Very small gradient -- gradsqr =", 
+                msg <- paste("Very small gradient -- gradsqr =",
                   gradsqr, sep = " ")
-                if (trace > 0) 
+                if (trace > 0)
                   cat(msg, "\n")
                 keepgoing <- FALSE  # done loops -- should we break ??
                 break  # to leave inner loop
             }
-            if (trace > 2) 
+            if (trace > 2)
                 cat("Betak = g3 = ", g3, "\n")
             if (g3 == 0 || cycle >= cyclimit) {
                 # we are resetting to gradient in this case
                 if (trace > 0) {
-                  if (cycle < cyclimit) cat("Yuan/Dai cycle reset\n")  
+                  if (cycle < cyclimit) cat("Yuan/Dai cycle reset\n")
                   else cat("Cycle limit reached -- reset\n")
                 }
                 fdiff <- NA
@@ -242,14 +242,14 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
                 # drop through if not Yuan/Dai cycle reset
                 t <- t * g3 - g  # t starts at zero, later is step vector
                 gradproj <- sum(t * g)  # gradient projection
-                if (trace > 1) 
+                if (trace > 1)
                   cat("Gradproj =", gradproj, "\n")
                 # ?? Why do we not check gradproj size??
                 ########################################################
                 ####                  Line search                   ####
                 OKpoint <- FALSE
-                if (trace > 2) 
-                  cat("Start linesearch with oldstep=", oldstep, 
+                if (trace > 2)
+                  cat("Start linesearch with oldstep=", oldstep,
                     "\n")
                 steplength <- oldstep * 1.5  #!! try a bit bigger
                 f <- fmin
@@ -274,13 +274,13 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
                       savestep<-steplength
                       steplength <- steplength * stepredn
                       if (steplength >=savestep) changed<-FALSE
-                      if (trace > 0) 
+                      if (trace > 0)
                         cat("*")
                     }
                   }
                 }  # end while
                 changed1 <- changed  # Change in parameters occured in step reduction
-                if (changed1) 
+                if (changed1)
                   {
                     ## ?? should we check for reduction? or is this done in if
                     #   (newstep >0) ?
@@ -289,18 +289,18 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
                       newstep = -(gradproj * steplength * steplength/newstep)
                     }
                     bvec <- par + newstep * t
-                    changed <- (!identical((bvec + reltest), 
+                    changed <- (!identical((bvec + reltest),
                       (par + reltest)))
                     if (changed) {
                       f <- fn(bvec, ...)
                       ifn <- ifn + 1
                     }
-                    if (trace > 2) 
+                    if (trace > 2)
                       cat("fmin, f1, f: ", fmin, f1, f, "\n")
                     if (f < min(fmin, f1)) {
                       # success
                       OKpoint <- TRUE
-                      accpoint <- (f <= fmin + gradproj * newstep * 
+                      accpoint <- (f <= fmin + gradproj * newstep *
                         acctol)
                       fdiff <- (fmin - f)  # check decrease
                       fmin <- f
@@ -309,7 +309,7 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
                     else {
                       if (f1 < fmin) {
                         bvec <- par + steplength * t  # reset best point
-                        accpoint <- (f1 <= fmin + gradproj * 
+                        accpoint <- (f1 <= fmin + gradproj *
                           steplength * acctol)
                         OKpoint <- TRUE  # Because f1 < fmin
                         fdiff <- (fmin - f1)  # check decrease
@@ -322,12 +322,12 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
                         accpoint <- FALSE
                       }  # f1<?fmin
                     }  # f < min(f1, fmin)
-                    if (trace > 1) 
-                      cat("accpoint = ", accpoint, " OKpoint = ", 
+                    if (trace > 1)
+                      cat("accpoint = ", accpoint, " OKpoint = ",
                         OKpoint, "\n")
                     if (!accpoint) {
                       msg <- "No acceptable point -- exit loop"
-                      if (trace > 0) 
+                      if (trace > 0)
                         cat("\n", msg, "\n")
                       keepgoing <- FALSE
                       break  #!!
@@ -337,7 +337,7 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
                   # not changed on step redn
                   if (cycle == 1) {
                     msg <- " Converged -- no progress on new CG cycle"
-                    if (trace > 0) 
+                    if (trace > 0)
                       cat("\n", msg, "\n")
                     keekpgoing <- FALSE
                     break  #!!
@@ -345,11 +345,11 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
                 }  # end else
             }  # end of test on Yuan/Dai condition
             #### End line search ####
-        
+
         	#added by Tinyi
         	if( (is.na(fdiff) && is.na(fdiff.old)) ) naD.num <- naD.num+1 #consecutive NA decrease value
         	else 	naD.num<-0 # reset na count
-        
+
         }  # end of inner loop (cycle)
         if (oldstep < acctol) {
             oldstep <- acctol
@@ -358,14 +358,14 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
         if (oldstep > 1) {
             oldstep <- 1
         }
-        if (trace > 1) 
+        if (trace > 1)
             cat("End inner loop, cycle =", cycle, "\n")
     }  # end of outer loop
-    
+
     if(naD.num == maxNA)  msg <- paste("maxNA", naD.num,"reached")
     else msg <- "Rcgmin seems to have converged"
-    
-    if (trace > 0) 
+
+    if (trace > 0)
         cat(msg, "\n")
     #  par: The best set of parameters found.
     #  value: The value of 'fn' corresponding to 'par'.
@@ -373,10 +373,10 @@ Rcgminu <- function(par, fn, gr, control = list(), ...) {
     # convergence: An integer code. '0' indicates successful
     #   convergence.
     #  message: A character string or 'NULL'.
-#    if (maximize) 
+#    if (maximize)
 #        fmin <- -fmin
     ans <- list(par, fmin, c(ifn, ig), 0, msg)
-    names(ans) <- c("par", "value", "counts", "convergence", 
+    names(ans) <- c("par", "value", "counts", "convergence",
         "message")
     return(ans)
 }  ## end of Rcgminu

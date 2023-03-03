@@ -66,9 +66,9 @@ optimize.psi.oneGamma <- function(phi,
 	#obtain a single MLE estimators for gamma
 
 	if(optimizer=="Rcgmin")
-		opt.res <- Rcgminu(par= rep(0,ncol(phi)),
-	  				   fn= log.mle.gamma,
-	  				   gr= log.mle.gamma.grad,
+		opt.res <- InstaPrism:::Rcgminu(par= rep(0,ncol(phi)),
+	  				   fn= InstaPrism:::log.mle.gamma,
+	  				   gr= InstaPrism:::log.mle.gamma.grad,
 	  				   control= opt.control,
 	  				   phi_transpose = t(phi),
 	  				   phi.log_transpose = t(log(phi)),
@@ -76,8 +76,8 @@ optimize.psi.oneGamma <- function(phi,
 	  				   Z_t = colSums(Z_gt))
 	if(optimizer=="BFGS")
 		opt.res <- optim(par= rep(0,ncol(phi)),
-	  				   fn= log.mle.gamma,
-	  				   gr= log.mle.gamma.grad,
+	  				   fn= InstaPrism:::log.mle.gamma,
+	  				   gr= InstaPrism:::log.mle.gamma.grad,
 	  				   control= opt.control,
 	  				   method="BFGS",
 	  				   phi_transpose = t(phi),

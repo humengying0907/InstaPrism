@@ -11,11 +11,9 @@ LazyData: true
 Suggests: 
     knitr,
     rmarkdown,
-    BayesPrism,
     snowfall,
     ggplot2,
-    ggpmisc,
-    parallel
+    ggpmisc
 VignetteBuilder: knitr
 RoxygenNote: 7.2.1
 Depends: 
@@ -24,7 +22,8 @@ Depends:
     tidyr,
     Matrix,
     caret,
-    NMF
+    NMF,
+    parallel
 Imports: 
     Rcpp (>= 1.0.5)
 LinkingTo: 

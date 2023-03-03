@@ -70,10 +70,9 @@ optimize.psi<-function(phi,
 	Z_t <- colSums(Z_gt)
 
 	cpu.fun <- function(t) {
-		require(BayesPrism)
-		Rcgminu(par= rep(0,ncol(phi)),
-	  			fn= log.posterior.gamma,
-	  			gr= log.posterior.gamma.grad,
+		InstaPrism:::Rcgminu(par= rep(0,ncol(phi)),
+	  			fn= InstaPrism:::log.posterior.gamma,
+	  			gr= InstaPrism:::log.posterior.gamma.grad,
 	  			control= opt.control,
 	  			phi_t = phi[t,],
 	  			phi_t.log = log(phi[t,]),

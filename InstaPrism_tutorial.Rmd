@@ -19,13 +19,15 @@ knitr::opts_chunk$set(
 ```
 
 ## Introduction
-**InstaPrism** is R package to deconvolute cellular proportion and gene expression in bulk RNA-Seq data. It is based on a Bayesian inference model from BayesPrism. **InstaPrism** provides fast implementation of the deconvolution module from BayesPrism: it replaces the time-consuming gibbs sampling steps in BayesPrism with a fixed-point algorithm that greatly accelerated the calculation speed while maintaining similar performance as BayesPrism.  \
+**InstaPrism** is R package to deconvolute cellular proportion and gene expression in bulk RNA-Seq data. Based on the same conceptual framework and corresponding generative mode from [BayesPrism](https://github.com/Danko-Lab/BayesPrism), **InstaPrism** re-implements BayesPrism in a derandomized framework by replacing the time-consuming Gibbs sampling steps in BayesPrism with a fixed-point algorithm, which greatly accelerated the calculation speed while maintaining highly comparable performance. \
 
 In this tutorial, we provide three examples of running **InstaPrism** and compare the results with BayesPrism.
 
 ## Getting started
 
-load the **InstaPrism** package. \
+Load the **InstaPrism** package. \
+
+**InstaPrism** works as an independent R package and does not require the users to have BayesPrism installed. \
 We recommend the readers to read through the [tutorial](https://github.com/Danko-Lab/BayesPrism/blob/main/tutorial_deconvolution.pdf) of BayePrism before running our examples. 
 ```{r setup}
 library(InstaPrism)
@@ -96,7 +98,7 @@ table(cell_state_labels)
 \ 
 We first consider a simple implementation where we use prior information from the scRNA Seq directly, without the need to update reference. 
 
-i. Run InstaPrism with raw input. In this mode, users don't need to have BayesPrism installed.
+i. Run InstaPrism with raw input.
 ```{r,results='hide',message=FALSE}
 start.time = Sys.time()
 InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = sc_Expr,bulk_Expr = bulk_Expr,
@@ -204,14 +206,13 @@ ggplot(rt,aes(method,time))+
 #### Step 5 (optional). Run deconvolution with InstaPrism and BayesPrism using the updated reference
 We now consider a more advanced deconvolution problem where we want to leverage from the information shared by bulk samples and update the reference matrix accordingly. \
 
-This step is implemented in BayesPrism by setting `update.gibbs = TRUE` in `run.prism()` function, or by calling the `update.theta()` function on the initial deconvoluton object. In **InstaPrism**, we concatenated the `update.theta()` module from BayesPrism and replaced the subsequent Gibbs Sampling step with our fixed-point alogirthm. \
-
-Note that to run deconvolution with the updated reference, users need to have BayesPrism installed. We also need to specif the `key` parameter to denote how to update reference. 
+This step is implemented in BayesPrism by setting `update.gibbs = TRUE` in `run.prism()` function, or by calling the `update.theta()` function on the initial deconvoluton object. In **InstaPrism**, we incorporated the `update.theta()` module from BayesPrism and replaced the subsequent Gibbs Sampling step with our fixed-point alogirthm. \
 
 
 i. deconvolution with InstaPrism
 ```{r,warning=FALSE}
-library(BayesPrism)
+# load necessary package 
+library(snowfall) 
 start.time = Sys.time()
 InstaPrism.res.updated = InstaPrism(input_type = 'raw',sc_Expr = sc_Expr,bulk_Expr = bulk_Expr,
                     cell.type.labels = cell_type_labels, cell.state.labels = cell_state_labels,
