@@ -35,28 +35,32 @@ Rcpp::List bpFixedPointCPP(const arma::mat& bulk, const arma::mat& ref, int n_it
   // Normalize rows to sum to 1
   arma::mat refPnorm = ref_norm.each_col()/ arma::sum(ref_norm, 1);
 
-//initial guess
-  arma::vec     ppguess = arma::vec(ncts, arma::fill::ones) / ncts;
+  //initial guess
+  arma::vec ppguess = arma::vec(ncts, arma::fill::ones) / ncts;
+  arma::vec ppguess_pre = arma::vec(ncts);
 
   arma::mat thisX;
   arma::mat thisXtot;
   // Iterate n_iter times
   for (int i = 0; i < n_iter; ++i) {
+
+    ppguess_pre = ppguess;
+
     //multiply each row by current proportions
-   thisX = refPnorm.each_row() % ppguess.t();
-// normalize each row to sum to 1
+    thisX = refPnorm.each_row() % ppguess.t();
+    // normalize each row to sum to 1
     thisX = thisX.each_col()/ arma::sum(thisX, 1);
 
-     thisXtot = thisX.each_col() % bulk;
+    thisXtot = thisX.each_col() % bulk;
 
     ppguess = arma::sum(thisXtot, 0).t();
 
     ppguess = ppguess / arma::sum(ppguess);
 
-
   }
 
   // Return result
   return Rcpp::List::create(Rcpp::Named("pp") = ppguess,
-                            Rcpp::Named("perCell") = thisXtot);
+                            Rcpp::Named("perCell") = thisXtot,
+                            Rcpp::Named("pp_pre") = ppguess_pre);
 }

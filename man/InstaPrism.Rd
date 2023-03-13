@@ -15,12 +15,14 @@ InstaPrism(
   pseudo.min = 1e-08,
   key = NA,
   prismObj = NULL,
-  n.iter = 20,
+  n.iter = NULL,
   update = F,
   optimizer = "MAP",
   opt.control = NULL,
   return.Z.cs = F,
   return.Z.ct = F,
+  verbose = F,
+  convergence.plot = F,
   n.core = 1,
   snowfall.ncore = 1
 )
@@ -47,12 +49,12 @@ dominated by outliers. This parameter denotes the same thing as in new.prism() f
 
 \item{pseudo.min}{the desired min values to replace zero after normalization. Default = 1E-8}
 
-\item{key}{a charater string to denote the word that corresponds to the malignant cell type, need to be define when update=T.
+\item{key}{a charater string to denote the word that corresponds to the malignant cell type, need to be define when update = T.
 Set to NULL if there is no malignant cells in the problem}
 
 \item{prismObj}{a Prism object, required when input_type='prism'}
 
-\item{n.iter}{number of iterations in the fixed-point implementation of BayesPrism. Default = 20, set a number greater than number of cell.states is recommended}
+\item{n.iter}{number of iterations in InstaPrism algorithm. Default = max(20, number of cell.states * 2)}
 
 \item{update}{a logical variable to denote whether return deconvolution result with the updated theta. When True,
 InstaPrism will implement the updateReference module from Bayesprism. Default=F.}
@@ -65,6 +67,10 @@ This parameter denotes the same thing as in the updateReference() function from 
 \item{return.Z.cs}{a logical variable determining whether to return cell.state specific gene expression, use default=FALSE to save memory}
 
 \item{return.Z.ct}{a logical variable determining whether to return cell.type specific gene expression, use default=FALSE to save memory}
+
+\item{verbose}{a logical variable determining whether to display convergence status of the model. Default = F}
+
+\item{convergence.plot}{a logical variable determining whether to visualize convergence status for cell types}
 
 \item{n.core}{number of cores to use for parallel programming. Default = 1}
 

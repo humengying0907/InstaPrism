@@ -23,7 +23,7 @@ build_ref_matrix<-function(Expr,cell_type_labels){
 #' @param n.iter number of iterations.
 #' @param n.core number of cores to use for parallel programming. Default = 1
 #' @export
-fastPost.ini.cs.cpp<-function(bulk_Expr,ref,n.iter=20,n.core=1){
+fastPost.ini.cs.cpp<-function(bulk_Expr,ref,n.iter,n.core=1){
   cms=intersect(rownames(bulk_Expr),rownames(ref))
   ref=ref[cms,]
   cl<- parallel::makeCluster(n.core)
@@ -42,7 +42,11 @@ fastPost.ini.cs.cpp<-function(bulk_Expr,ref,n.iter=20,n.core=1){
     Z[n,,]=res.list[[n]]$perCell
   }
 
-  return(new('posterior',theta=theta,Z=Z))
+  theta_pre=mapply(`[[`, res.list, 3)
+  rownames(theta_pre)=colnames(ref)
+
+  return(list(posterior=new('posterior',theta=theta,Z=Z),
+              dif_cs = abs(theta-theta_pre)))
 }
 
 
@@ -211,7 +215,7 @@ updateReference_adapated <- function(Z,
 #' @param n.iter number of iteration
 #' @param n.core number of cores to use for parallel programming. Default = 1
 #' @export
-fastPost.updated.ct.cpp<-function(bulk_Expr,updated_phi,n.iter=20, n.core=1){
+fastPost.updated.ct.cpp<-function(bulk_Expr,updated_phi,n.iter, n.core=1){
   # for refTumor only
   stopifnot(nrow(bulk_Expr)==ncol(updated_phi@psi_mal))
   psi_mal=updated_phi@psi_mal
@@ -252,16 +256,18 @@ fastPost.updated.ct.cpp<-function(bulk_Expr,updated_phi,n.iter=20, n.core=1){
 #'		  dominated by outliers. This parameter denotes the same thing as in new.prism() function from BayesPrism package.
 #' @param pseudo.min the desired min values to replace zero after normalization. Default = 1E-8
 #' @param prismObj a Prism object, required when input_type='prism'
-#' @param n.iter number of iterations in the fixed-point implementation of BayesPrism. Default = 20, set a number greater than number of cell.states is recommended
+#' @param n.iter number of iterations in InstaPrism algorithm. Default = max(20, number of cell.states * 2)
 #' @param update a logical variable to denote whether return deconvolution result with the updated theta. When True,
 #'      InstaPrism will implement the updateReference module from Bayesprism. Default=F.
-#' @param key a charater string to denote the word that corresponds to the malignant cell type, need to be define when update=T.
+#' @param key a charater string to denote the word that corresponds to the malignant cell type, need to be define when update = T.
 #'		  Set to NULL if there is no malignant cells in the problem
 #' @param optimizer a character string to denote which algorithm to use. Can be either "MAP" or "MLE", required when update=T.
 #'      This parameter denotes the same thing as in the updateReference() function from BayesPrism.
 #' @param opt.control a list containing the parameters to control optimization. Set opt.control = NULL for default settings as from package BayesPrism
 #' @param return.Z.cs a logical variable determining whether to return cell.state specific gene expression, use default=FALSE to save memory
 #' @param return.Z.ct a logical variable determining whether to return cell.type specific gene expression, use default=FALSE to save memory
+#' @param verbose a logical variable determining whether to display convergence status of the model. Default = F
+#' @param convergence.plot a logical variable determining whether to visualize convergence status for cell types
 #' @param n.core number of cores to use for parallel programming. Default = 1
 #' @param snowfall.ncore number of cores to use for reference update. Default = 1
 #'
@@ -273,20 +279,34 @@ InstaPrism<-function(input_type=c('raw','prism'),
                  cell.type.labels=NULL,cell.state.labels=NULL,
                  outlier.cut=0.01,outlier.fraction=0.1,pseudo.min=1E-8,key=NA,
                  prismObj=NULL,
-                 n.iter=20,
+                 n.iter=NULL,
                  update=F,optimizer='MAP',opt.control=NULL,
                  return.Z.cs=F,
                  return.Z.ct=F,
+                 verbose=F,
+                 convergence.plot=F,
                  n.core=1,
                  snowfall.ncore=1){
+  if(is.null(n.iter)){
+    n.iter = max(20,length(unique(cell.state.labels)))
+  }
   if(input_type=='raw'){
     bp=bpPrepare(sc_Expr,bulk_Expr,cell.type.labels,cell.state.labels,outlier.cut,outlier.fraction,pseudo.min=pseudo.min)
-    Post.ini.cs=fastPost.ini.cs.cpp(bp@bulk_mixture,bp@phi.cs,n.iter,n.core)
+
+    rl = fastPost.ini.cs.cpp(bp@bulk_mixture,bp@phi.cs,n.iter,n.core)
+
+    Post.ini.cs= rl$posterior
+    dif_cs = rl$dif_cs
+
     map=bp@map
     bulk_mixture=bp@bulk_mixture
     phi.ct=t(bp@phi.ct)
   }else if(input_type=='prism'){
-    Post.ini.cs=fastPost.ini.cs.cpp(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter,n.core)
+
+    rl = fastPost.ini.cs.cpp(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter,n.core)
+
+    Post.ini.cs=rl$posterior
+    dif_cs = rl$dif_cs
 
     map=prismObj@map
     bulk_mixture=t(prismObj@mixture)
@@ -294,17 +314,46 @@ InstaPrism<-function(input_type=c('raw','prism'),
     key=prismObj@key
   }
 
+  dif_ct = do.call(rbind,lapply(map,function(x)colSums(dif_cs[rownames(dif_cs) %in% x,,drop=F])))
+
+  if(any(dif_ct>0.01)){
+    warning("fraction estimation didn't converge for some samples, enable convergence.plot for details and try larger n.iter")
+  }
+
+  if(verbose==T){
+    conv_cs=t(dif_cs) %>% as.data.frame() %>% gather(key = 'cell.state',value = 'abs_diff') %>%
+      group_by(cell.state) %>% summarise(min=min(abs_diff),median = median(abs_diff),max = max(abs_diff)) %>% as.data.frame()
+
+    conv_ct=t(dif_ct) %>% as.data.frame() %>% gather(key = 'cell.type',value = 'abs_diff') %>%
+      group_by(cell.type) %>% summarise(min=min(abs_diff),median = median(abs_diff),max = max(abs_diff)) %>% as.data.frame()
+
+    cat('==================== convergence status summary ================== \n',
+        'instructions: \n',
+        'the absolute difference in fraction estimates between the last two iterations is utilized as an indicator of convergence, \n',
+        'with smaller values indicating convergence (usually consider abs_diff < 0.01 as convergence), \n',
+        'below is a summarized convergence status for cell.states/cell.types across all the samples')
+
+    cat('=============== convergence status summary for cell states ============== \n')
+    print(conv_cs)
+
+    cat('=============== convergence status summary for cell types ============== \n')
+    print(conv_ct)
+  }
+  if(convergence.plot==T){
+    show_colnames=ifelse(ncol(dif_ct)>100,F,T)
+    pheatmap::pheatmap(dif_ct,cluster_rows = F,cluster_cols = F,color = hcl.colors(50, "OrRd") %>% rev () ,
+                       breaks = seq(0,0.02, length.out=50),show_colnames=show_colnames,main = 'Convergence status for cell types')
+  }
+
   Post.ini.ct=mergeK_adapted(Post.ini.cs,map=map)
 
   if(return.Z.cs==T){
     Post.ini.cs = Post.ini.cs
-
     if (nrow(Post.ini.cs@theta)>10 & update==T){
       warning('R memory limit warning: too much data in memory, set return.Z.cs = F to save memory')
     }
 
   }else{
-
     Post.ini.cs = new('theta',theta=Post.ini.cs@theta)
   }
   gc()
@@ -334,7 +383,7 @@ InstaPrism<-function(input_type=c('raw','prism'),
       Post.updated.ct=fastPost.updated.ct.cpp(bulk_mixture,updated_phi,n.iter,n.core)
     }else if(is(updated_phi,'refPhi')){
       message('deconvolution with the updated reference (using refPhi)')
-      Post.updated.ct=new('theta',theta=fastPost.ini.cs.cpp(bulk_mixture,t(updated_phi@phi),n.iter,n.core)@theta)
+      Post.updated.ct=new('theta',theta=fastPost.ini.cs.cpp(bulk_mixture,t(updated_phi@phi),n.iter,n.core)$posterior@theta)
     }
     if(return.Z.ct==F){
       Post.ini.ct = new('theta',theta = Post.ini.ct@theta)

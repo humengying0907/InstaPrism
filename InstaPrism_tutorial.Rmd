@@ -28,7 +28,9 @@ In this tutorial, we provide three examples of running **InstaPrism** and compar
 Load the **InstaPrism** package. \
 
 **InstaPrism** works as an independent R package and does not require the users to have BayesPrism installed. \
-We recommend the readers to read through the [tutorial](https://github.com/Danko-Lab/BayesPrism/blob/main/tutorial_deconvolution.pdf) of BayePrism before running our examples. 
+We recommend the readers to read through the [tutorial](https://github.com/Danko-Lab/BayesPrism/blob/main/tutorial_deconvolution.pdf) of BayePrism before running our examples. \
+`extdata` folder associated with this tutorial can be downloaded from [zenodo](https://zenodo.org/record/7730658) repository. 
+
 ```{r setup}
 library(InstaPrism)
 ```
@@ -277,6 +279,7 @@ ggplot(rt,aes(method,time))+
 ```
 
 
+
 ## Example 2: deconvolution on the tutorial data from BayesPrism
 \
 In this example, we will use the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) provided in BayesPrism and compare the deconvolution results between InstaPrism and BayesPrism. \
@@ -337,7 +340,7 @@ save(bp.res,bp_running_time,file = 'extdata/tutorial_example2/bp.res.RData')
 
 ```
 \
-Alternatively, users can download the processed results directly from zenodo repository (will update later)
+Alternatively, users can download the processed results directly from [zenodo](https://zenodo.org/record/7730658) repository
 ```{r}
 load('extdata/tutorial_example2/bp.res.RData')
 ```
@@ -459,8 +462,8 @@ where we assign the malignant cells with different cell.states by their patient 
 #### Step 2. Run InstaPrism
 ```{r}
 InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr = simulated_bulk,
-                            cell.type.labels = cell.type.labels, cell.state.labels = cell.state.labels,
-                            key='malignant',n.core = 16)
+                            cell.type.labels = cell.type.labels, cell.state.labels = cell.state.labels, 
+                            n.iter = 100,n.core = 16)
 ```
 \
 
@@ -517,10 +520,46 @@ ggplot(df,aes(x = cell_type, y = correlation, group = method)) +
 ```
 As can be found here, using the updated reference does not improve the performance significantly, and even leads to performance drop in some cases. Therefore in real practice, to accelerate the deconvolution process as well as to maintain good results, we recommend the users to set `update=F` (which is the default setting in `InstaPrism()`).
 \
+
+## Additional notes on InstaPrism parameters
+So far we have demonstrated the primary usage of **InstaPrism**, mostly with the default parameters. In real practice, some of the default parameters can be tailored to meet the users' specific requirements.
+
+* **n.iter**: number of iterations in InstaPrism algorithm.  
+`n.iter` is an important parameter for InstaPrism algorithm. InstaPrism updates the fraction estimates over iterations and `n.iter` determines how many iterations are performed. Under default setting, this value is set to *max(20, number of cell.states $\times$ 2)*. However, users can set it to larger values to improve convergence. Specifically, we included two additional parameters that help to verify the convergence status: *verbose* and *convergence.plot*.
+
+* **verbose**: a logical variable to determine whether to display convergence status of the model.   
+By setting `verbose = T`, `InstaPrsim()` will print the convergence status summary for both cell.states and cell.types.  
+Specifically, the absolute difference in fraction estimates between the last two iterations is utilized as an indicator of convergence (abs_diff), with smaller values indicating convergence and higher confidence of the deconvolution results. 
+Using `example3.RData` as a demonstration, by setting `verbose = T`, we get a summarized table showing the minimum, median and maximum abs_diff for all cell.states/types across the samples. Usually we consider abs_diff < 0.01 as convergence. 
+
+```{r}
+load('extdata/tutorial_example3/example3.RData')
+InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr = simulated_bulk,
+                            cell.type.labels = cell.type.labels, cell.state.labels = cell.state.labels, 
+                            n.iter = 100,n.core = 16,verbose = T)
+```
+
+* **convergence.plot**: a logical variable determining whether to visualize convergence status for cell types.   
+Again, using `example3.RData` as a demonstration, first let's consider the scenario when`n.iter` is set too low. According to the convergence plot, fraction estimates for malignant cells did not converge. This means that we should set higher value of `n.iter`.
+```{r,fig.align='center',fig.width=10,fig.height=4.5}
+InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr = simulated_bulk,
+                            cell.type.labels = cell.type.labels, cell.state.labels = cell.state.labels, 
+                            n.iter = 20,n.core = 16,convergence.plot=T)
+```
+
+Now, let's try using a higher value of `n.iter`. 
+This time we get fraction estimation for all the cell types converge (with all the abs_diff less than 0.01). 
+```{r,fig.align='center',fig.width=10,fig.height=4.5}
+InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr = simulated_bulk,
+                            cell.type.labels = cell.type.labels, cell.state.labels = cell.state.labels, 
+                            n.iter = 100,n.core = 16,convergence.plot=T)
+```
+
+
+* **return.Z.cs**: a logical variable determining whether to return cell.state specific gene expression.   
+By default, this parameter is set to FALSE to save memory in the calculation. We recommend that readers keep this parameter at its default setting, particularly when dealing with a large number of distinct cell states.
+
 \
-
-
-
-
-
+\
+\
 
