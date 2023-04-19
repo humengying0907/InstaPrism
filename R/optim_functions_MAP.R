@@ -81,13 +81,13 @@ optimize.psi<-function(phi,
 	  			prior.num = prior.num)
 	}
 
-	sfInit(parallel = TRUE, cpus = opt.control$n.cores, type = "SOCK" )
+	snowfall::sfInit(parallel = TRUE, cpus = opt.control$n.cores, type = "SOCK" )
 	opt.control$n.cores <- NULL
-	sfExport("phi", "Z_gt", "Z_t", "prior.num", "opt.control")
+	snowfall::sfExport("phi", "Z_gt", "Z_t", "prior.num", "opt.control")
 
 	environment(cpu.fun) <- globalenv()
-	opt.res <- sfLapply( 1:nrow(phi), cpu.fun)
-	sfStop()
+	opt.res <- snowfall::sfLapply( 1:nrow(phi), cpu.fun)
+	snowfall::sfStop()
 	gc()
 
 	#check.converge(opt.res)

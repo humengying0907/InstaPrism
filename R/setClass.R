@@ -1,12 +1,32 @@
 
-#' An S4 class to represent input for InstaPrism when input.type='raw'
+#' An S4 class to represent input Phi object (cell states only) for InstaPrism
+#' @slot phi.cs reference matrix for cell.states
+#' @slot map a list to store the correspondence between cell states and cell types
+#' @keywords internal
+#' @noRd
+setClass("refPhi_cs",
+         slots = c(phi.cs='matrix',
+                   map='list'))
+
+#' An S4 class to represent input Phi object for InstaPrism
+#' @slot phi.cs reference matrix for cell.states
+#' @slot phi.ct reference matrix for cell.types
+#' @slot map a list to store the correspondence between cell states and cell types
+#' @keywords internal
+#' @noRd
+setClass("refPhi",
+         slots = c(phi.cs='matrix',
+                   phi.ct='matrix',
+                   map='list'))
+
+#' An S4 class to represent input for InstaPrism
 #' @slot phi.cs reference matrix for cell.states
 #' @slot phi.ct reference matrix for cell.types
 #' @slot bulk_mixture bulk RNA-seq to deconvolute
 #' @slot map a list to store the correspondence between cell states and cell types
 #' @keywords internal
 #' @noRd
-setClass("bpPrepare",
+setClass("bpPrepareObj",
          slots = c(phi.cs='matrix',
                    phi.ct='matrix',
                    bulk_mixture='matrix',
@@ -41,18 +61,6 @@ setClassUnion("posterior.obj",
 setClass("InstaPrism",slots = c(Post.ini.cs='posterior.obj',
                                 Post.ini.ct='posterior.obj'))
 
-#' An S4 class to represent extended InstaPrism results
-#' @slot Post.ini.cs cell state abundance matrix (theta) and/or an S4 posterior object containing both theta and Z
-#' @slot Post.ini.ct cell type abundance matrix (theta) and/or an S4 posterior object containing both theta and Z
-#' @slot Post.updated.ct cell.type fraction estimates using updated reference
-#' @keywords internal
-#' @noRd
-#'
-setClass('InstaPrismExtra',slots = c(Post.ini.cs='posterior.obj',
-                                     Post.ini.ct='posterior.obj',
-                                     Post.updated.ct='posterior.obj'))
-
-
 
 #' S4 class to store (non-malignant) reference matrix phi or psi (if no malignant cells)
 #'
@@ -61,7 +69,7 @@ setClass('InstaPrismExtra',slots = c(Post.ini.cs='posterior.obj',
 #' @slot pseudo.min the desired minimum value used to normalize phi.
 #' @keywords internal
 #' @noRd
-setClass("refPhi",
+setClass("bpRefPhi",
          slots = c(
            phi = "matrix",
            pseudo.min ="numeric"
@@ -99,7 +107,7 @@ setClass("refPhi",
 #' @slot pseudo.min the desired minimum value used to normalize phi.
 #' @keywords internal
 #' @noRd
-setClass("refTumor",
+setClass("bpRefTumor",
          slots = c(
            psi_mal = "matrix",
            psi_env = "matrix",
@@ -143,3 +151,29 @@ setClass("refTumor",
          }
 
 )
+
+
+setClassUnion("updated_reference",
+              c("bpRefPhi","bpRefTumor"))
+
+
+#' An S4 class to represent extended InstaPrism results
+#' @slot Post.ini.cs cell state abundance matrix (theta) and/or an S4 posterior object containing both theta and Z
+#' @slot Post.ini.ct cell type abundance matrix (theta) and/or an S4 posterior object containing both theta and Z
+#' @slot Post.updated.ct cell.type fraction estimates using updated reference
+#' @slot initial.reference an initial_reference object with initial reference (scRNA reference phi)
+#' @slot updated.reference updated reference object
+#' @keywords internal
+#' @noRd
+#'
+setClass('InstaPrismExtra',slots = c(Post.ini.cs='posterior.obj',
+                                     Post.ini.ct='posterior.obj',
+                                     Post.updated.ct='posterior.obj',
+                                     initial.reference = 'initial_reference',
+                                     updated.reference = 'updated_reference'))
+
+setClass('initial_reference',slots = c(phi.cs = 'matrix',
+                                       phi.ct = 'matrix'))
+
+
+

@@ -5,42 +5,50 @@
 \title{Run InstaPrism deconvolution}
 \usage{
 InstaPrism(
-  input_type = c("raw", "prism"),
+  input_type = c("raw", "prism", "refPhi", "refPhi_cs"),
   sc_Expr = NULL,
   bulk_Expr = NULL,
   cell.type.labels = NULL,
   cell.state.labels = NULL,
+  filter = TRUE,
   outlier.cut = 0.01,
   outlier.fraction = 0.1,
   pseudo.min = 1e-08,
-  key = NA,
   prismObj = NULL,
+  refPhi = NULL,
+  refPhi_cs = NULL,
   n.iter = NULL,
   update = F,
   optimizer = "MAP",
   opt.control = NULL,
+  key = NA,
   return.Z.cs = F,
   return.Z.ct = F,
   verbose = F,
   convergence.plot = F,
+  max_n_per_plot = 50,
   n.core = 1,
   snowfall.ncore = 1
 )
 }
 \arguments{
-\item{input_type}{either 'raw' or 'prism'. With 'raw', need to specify the following input manually:
-sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels}
+\item{input_type}{one of the following input_types are allowed: 'raw', 'prism', 'refPhi' and 'refPhi_cs'.
+With 'raw', need to specify the following input manually: sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels.
+With 'prism', need to provide a prism object. With 'refPhi', need to provide refPhi and bulk_Expr.
+With 'refPhi_cs', need to provide refPhi_cs and bulk Expr}
 
-\item{sc_Expr}{single cell expression matrix, with genes in rows and cells in columns}
+\item{sc_Expr}{single cell expression matrix (without log transformation), with genes in rows and cells in columns, required when input_type = T}
 
-\item{bulk_Expr}{bulk expression to deconvolute, with genes in rows and samples in columns}
+\item{bulk_Expr}{bulk expression to deconvolute (without log transformation), with genes in rows and samples in columns}
 
 \item{cell.type.labels}{a character vector indicating cell types of each cell in sc_Expr}
 
 \item{cell.state.labels}{a character vector indicating cell states of each cell in sc_Expr}
 
+\item{filter}{a logical vatiable to determine whether to filter genes in bulk_Expr or not}
+
 \item{outlier.cut}{Filter genes in bulk mixture whose expression fraction is greater than outlier.cut (Default=0.01)
-in more than outlier.fraction (Default=0.1) of bulk data. Removal of outlier genes will ensure that the inference will not be
+in more than outlier.fraction (Default=0.01) of bulk data. Removal of outlier genes will ensure that the inference will not be
 dominated by outliers. This parameter denotes the same thing as in new.prism() function from BayesPrism package.}
 
 \item{outlier.fraction}{Filter genes in bulk mixture whose expression fraction is greater than outlier.cut (Default=0.01)
@@ -49,20 +57,24 @@ dominated by outliers. This parameter denotes the same thing as in new.prism() f
 
 \item{pseudo.min}{the desired min values to replace zero after normalization. Default = 1E-8}
 
-\item{key}{a charater string to denote the word that corresponds to the malignant cell type, need to be define when update = T.
-Set to NULL if there is no malignant cells in the problem}
-
 \item{prismObj}{a Prism object, required when input_type='prism'}
+
+\item{refPhi}{a refPhi object with single cell reference phi information, required when input_type='refPhi'}
+
+\item{refPhi_cs}{a refPhi_cs object with single cell reference phi information (cell state only), required when input_type='refPhi_cs'}
 
 \item{n.iter}{number of iterations in InstaPrism algorithm. Default = max(20, number of cell.states * 2)}
 
 \item{update}{a logical variable to denote whether return deconvolution result with the updated theta. When True,
-InstaPrism will implement the updateReference module from Bayesprism. Default=F.}
+InstaPrism will implement the updateReference module from Bayesprism. Default = F}
 
 \item{optimizer}{a character string to denote which algorithm to use. Can be either "MAP" or "MLE", required when update=T.
 This parameter denotes the same thing as in the updateReference() function from BayesPrism.}
 
 \item{opt.control}{a list containing the parameters to control optimization. Set opt.control = NULL for default settings as from package BayesPrism}
+
+\item{key}{a character string to denote the word that corresponds to the malignant cell type, need to be define when update = T.
+Set to NA if there is no malignant cells in the problem}
 
 \item{return.Z.cs}{a logical variable determining whether to return cell.state specific gene expression, use default=FALSE to save memory}
 
@@ -72,12 +84,15 @@ This parameter denotes the same thing as in the updateReference() function from 
 
 \item{convergence.plot}{a logical variable determining whether to visualize convergence status for cell types}
 
+\item{max_n_per_plot}{max number of samples to visualize in one convergence plot}
+
 \item{n.core}{number of cores to use for parallel programming. Default = 1}
 
 \item{snowfall.ncore}{number of cores to use for reference update. Default = 1}
 }
 \value{
-a list containing cellular fraction estimates, summarized at both cell type level and cell state level
+an InstaPrism object containing posterior information for cell states and cell types,
+     which includes theta (fraction estimates), and Z (cellular component specific expression, optional)
 }
 \description{
 A fast version of BayesPrism deconvolution, takes single cell profiles as prior information

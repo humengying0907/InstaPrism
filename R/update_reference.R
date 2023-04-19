@@ -93,7 +93,7 @@ updateReference <- function(Z,
 							optimizer = c("MAP","MLE"),
 							opt.control){
 
-	cat("Update the reference matrix ... \n")
+	cat("Update the reference matrix  \n")
 
 	sigma <- opt.control$sigma
 	opt.control$sigma <- NULL

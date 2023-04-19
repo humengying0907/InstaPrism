@@ -4,7 +4,7 @@
 \alias{fastPost.updated.ct.cpp}
 \title{Fast posterior estimation of cell-type fractions and expression with updated reference}
 \usage{
-fastPost.updated.ct.cpp(bulk_Expr, updated_phi, n.iter, n.core = 1)
+fastPost.updated.ct.cpp(bulk_Expr, updated_phi, n.iter, n.core)
 }
 \arguments{
 \item{bulk_Expr}{bulk expression matrix to deconvolute}

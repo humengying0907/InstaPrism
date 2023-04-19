@@ -63,12 +63,12 @@ data("sim.data")
 \
 
 #### Step 2. Prepare input for InstaPrism and BayesPrism
-**InstaPrism** takes the same input format as BayesPrism:
+Both **InstaPrism** and BayesPrism take single cell profiles as prior information and return deconvolution results for a given bulk expression matrix. To prepare input for InstaPrism and BayesPrism, we need:
 
-* a single-cell expression data as prior information
-* a bulk expression to run deconvolution
-* a character vector indicating cell types of each cell from the scRNA data
-* a character vector indicating cell states of each cell from the scRNA data
+* scExpr: a single-cell expression data as prior information (raw count or CPM normalized expression)
+* bulk_Expr: a bulk expression to run deconvolution (raw count or TPM normalized expression)
+* cell.type.labels: a character vector indicating cell types of each cell from the scRNA data
+* cell.state.labels: a character vector indicating cell states of each cell from the scRNA data
 
 In real practice, cell.state.labels usually denote different cell states from a same given cell type. For example, malignant cells can be subclustered by different patients to denote different malignant states. With the *sim.data* we created above, we will generate some artificial cell state labels for *Neurons* given individual IDs.
 
@@ -98,47 +98,85 @@ table(cell_state_labels)
 
 #### Step 3. Run deconvolution with InstaPrism and BayesPrism 
 \ 
-We first consider a simple implementation where we use prior information from the scRNA Seq directly, without the need to update reference. 
+`InstaPrism()` is the main deconvolution function. Depending the format of single cell prior information to use, users need to specify the `input_type` argument passed to the function. The `InstaPrism()` function currently support **four** input_types.  \
+Note that in the following examples we will consider a simple implementation where we use prior information from the scRNA Seq directly, without the need to update reference.
 
-i. Run InstaPrism with raw input.
-```{r,results='hide',message=FALSE}
-start.time = Sys.time()
+**1. InstaPrism with `input_type = 'raw'`**
+
+Under this setting, InstaPrism takes the same input format as BayesPrism:
+
+* scExpr: a single-cell expression data as prior information (raw count or CPM normalized expression)
+* bulk_Expr: a bulk expression to run deconvolution (raw count or TPM normalized expression)
+* cell.type.labels: a character vector indicating cell types of each cell from the scRNA data
+* cell.state.labels: a character vector indicating cell states of each cell from the scRNA data
+
+```{r,results='hide'}
+library(tictoc) # load package to measure execution time
+tic()
 InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = sc_Expr,bulk_Expr = bulk_Expr,
                     cell.type.labels = cell_type_labels,cell.state.labels = cell_state_labels,
-                    update=F, return.Z.cs = T, return.Z.ct  = T)
-end.time=Sys.time()
-InstaPrism_mode1_running_time = difftime(end.time, start.time,units = 'secs') %>% as.numeric()
+                    return.Z.cs = T, return.Z.ct  = T)
+```
+```{r}
+elapsed1 = toc()
 ```
 
-ii. Run InstaPrism with a Prism Object as input. \
+**2. InstaPrism with `input_type = 'prism'`**
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In this mode, users need first construct a prism object using the BayesPrism package.
-```{r,results='hide',message=FALSE}
+In this mode, users need to first construct a prism object using the BayesPrism package, and then pass the `prismObj` to the `InstaPrism()` function. 
+
+```{r,results='hide'}
 library(BayesPrism)
-start.time = Sys.time()
+tic()
 bp.obj = new.prism(reference = t(sc_Expr),input.type = 'count.matrix',
                    cell.type.labels = cell_type_labels, cell.state.labels = cell_state_labels,
-                   key = 'Neurons',mixture = t(bulk_Expr))
-InstaPrism.res2 = InstaPrism(input_type = 'prism',prismObj = bp.obj,update=F,return.Z.cs = T,return.Z.ct  = T)
-end.time=Sys.time()
-InstaPrism_mode2_running_time = difftime(end.time, start.time,units = 'secs') %>% as.numeric()
+                   mixture = t(bulk_Expr),key = NULL)
+InstaPrism.res2 = InstaPrism(input_type = 'prism',prismObj = bp.obj,return.Z.cs = T,return.Z.ct  = T)
 ```
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;With update = F (default setting), InstaPrism function returns an S4 object containing the following objects:
-
-* Post.ini.cs: posterior information for cell.states
-    + Z: a three dimension array indicating gene expression of each cell.state in different individual (returned when `return.Z.cs=T`, default = F)
-    + theta: cell.state fraction estimates for each individual
-* Post.ini.ct: posterior information for cell.types
-    + Z: a three dimension array indicating gene expression of each cell.types in different individual (returned when `return.Z.ct=T`, default = F)
-    + theta: cell.types fraction estimates for each individual
-  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Note that InstaPrism with both input types produce the same results
 ```{r}
-all.equal(InstaPrism.res,InstaPrism.res2)
+elapsed2 = toc()
 ```
 
+**3. InstaPrism with `input_type = 'refPhi'` (recommended)**
 
-iii. Run BayesPrism 
+Under this setting, users need to pass a pre-defined `refPhi` object containing single cell prior information. To build a `refPhi` object, users can use the `refPrepare()` function with the following arguments:
+
+* scExpr: a single-cell expression data as prior information (raw count or CPM normalized expression)
+* cell.type.labels: a character vector indicating cell types of each cell from the scRNA data
+* cell.state.labels: a character vector indicating cell states of each cell from the scRNA data
+
+Alternatively, users can use the the pre-built `refPhi` object we provided for different tumor types (will come out soon). \
+The advantage of using `refPhi` as input is that one doesn't need to load the large single cell expression matrix every time, and the `refPhi` object can be easily re-implemented once built. 
+
+```{r,results='hide'}
+refPhi_obj = refPrepare(sc_Expr, cell_type_labels, cell_state_labels, output_class = 'refPhi')
+tic()
+InstaPrism.res3 = InstaPrism(input_type = 'refPhi',bulk_Expr = bulk_Expr,refPhi = refPhi_obj, return.Z.cs = T,return.Z.ct  = T)
+```
+```{r}
+elapsed3 = toc()
+```
+
+**4. InstaPrism with `input_type = 'refPhi_cs'` (advanced practice)**
+
+Using `refPhi_cs` provides a more versatile setting where users can selectively choose which cell-states to use for deconvolution. \
+Given a pre-built `refPhi` object, users can modify it easily by selectively include cell-states for evaluation. For example, given the `refPhi` object we built in the previous section, if we only want to include `Neurons_subA` and `Neurons_subB` as cell states of interest, and remove `Neurons_subC` from Neurons, we could: 
+
+```{r,results='hide'}
+refPhi_cs_map = refPhi_obj@map
+refPhi_cs_map$Neurons = c('Neurons_subA', 'Neurons_subB' )
+to_move_id = which(colnames(refPhi_obj@phi.cs) == 'Neurons_subC')
+refPhi_cs_obj = new('refPhi_cs',phi.cs = refPhi_obj@phi.cs[,-to_move_id],map = refPhi_cs_map)
+
+InstaPrism.res4 = InstaPrism(input_type = 'refPhi_cs',bulk_Expr = bulk_Expr,refPhi_cs = refPhi_cs_obj, return.Z.cs = T,return.Z.ct  = T)
+```
+However, note that the `updateReference` module will not be available under this setting, since we are missing cell.type specific reference phi, which is required to update reference. \
+\
+
+**Run BayesPrism for comparison**
+
+In the following example, we are setting `update.gibbs = F` for consistency with our previous examples where we only consider single-cell based reference, without updating the reference. Deconvolution with BayesPrism can be called by a single function `run.prism()` as follows:
+
 ```{r,eval=FALSE}
 start.time = Sys.time()
 bp.res = run.prism(bp.obj,update.gibbs = F)
@@ -151,7 +189,6 @@ save(bp.res,bp_running_time,file='extdata/tutorial_example1/bp.res.initial.RData
 ```{r,include=FALSE}
 load('extdata/tutorial_example1/bp.res.initial.RData')
 ```
-
 
 #### Step 4. Evaluate deconvolution results of InstaPrism and BayesPrism 
 
@@ -191,16 +228,23 @@ deconv_performance_plot(t(InstaPrism.res@Post.ini.ct@Z[1,,]),t(bp.res@posterior.
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; InstaPrism significantly accelerates the deconvolution speed in either modes.
 
-```{r,fig.align='center',fig.width=4.7,fig.height=2.45}
-rt=data.frame(method=c('InstaPrism.raw.mode','InstaPrism.prism.mode','BayesPrism'),
-              time=c(InstaPrism_mode1_running_time,InstaPrism_mode2_running_time,bp_running_time))
+```{r,fig.align='center',fig.width=4.8,fig.height=3.3}
+InstaPrism_mode1_running_time = as.numeric(elapsed1$toc-elapsed1$tic)
+InstaPrism_mode2_running_time = as.numeric(elapsed2$toc-elapsed2$tic)
+InstaPrism_mode3_running_time = as.numeric(elapsed3$toc-elapsed3$tic)
+
+rt=data.frame(method=c('InstaPrism.raw.mode','InstaPrism.prism.mode','InstaPrism.refPhi.mode','BayesPrism'),
+              time=c(InstaPrism_mode1_running_time,InstaPrism_mode2_running_time,
+                     InstaPrism_mode3_running_time,bp_running_time))
 rt$time=round(rt$time,2)
 ggplot(rt,aes(method,time))+
   geom_bar(stat="identity",fill='grey',width = 0.5)+
   theme_bw()+
+  xlab('')+
   ylab('time (secs)')+
   geom_text(aes(label = time), vjust = -0.2)+
-  ylim(0,max(rt$time)*1.05)
+  ylim(0,max(rt$time)*1.05)+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
 ```
 
 \
@@ -208,19 +252,18 @@ ggplot(rt,aes(method,time))+
 #### Step 5 (optional). Run deconvolution with InstaPrism and BayesPrism using the updated reference
 We now consider a more advanced deconvolution problem where we want to leverage from the information shared by bulk samples and update the reference matrix accordingly. \
 
-This step is implemented in BayesPrism by setting `update.gibbs = TRUE` in `run.prism()` function, or by calling the `update.theta()` function on the initial deconvoluton object. In **InstaPrism**, we incorporated the `update.theta()` module from BayesPrism and replaced the subsequent Gibbs Sampling step with our fixed-point alogirthm. \
+This step is implemented in BayesPrism by setting `update.gibbs = TRUE` in `run.prism()` function, or by calling the `update.theta()` function on the initial deconvoluton object. In **InstaPrism**, we incorporated the `update.theta()` module from BayesPrism and replaced the subsequent Gibbs Sampling step with our fixed-point alogirthm. To enable reference update, simply set `update = T` \
 
+**i. deconvolution with InstaPrism**
 
-i. deconvolution with InstaPrism
-```{r,warning=FALSE}
-# load necessary package 
-library(snowfall) 
-start.time = Sys.time()
+```{r,results='hide',warning=FALSE}
+tic()
 InstaPrism.res.updated = InstaPrism(input_type = 'raw',sc_Expr = sc_Expr,bulk_Expr = bulk_Expr,
                     cell.type.labels = cell_type_labels, cell.state.labels = cell_state_labels,
-                    update=T,key='Neurons')
-end.time=Sys.time()
-InstaPrism_updated_running_time = difftime(end.time, start.time,units = 'secs') %>% as.numeric()
+                    update=T)
+```
+```{r}
+elp = toc()
 ```
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;With update = T, InstaPrism function returns an S4 object containing the following information:
 
@@ -232,9 +275,11 @@ InstaPrism_updated_running_time = difftime(end.time, start.time,units = 'secs') 
     + theta: cell.types fraction estimates for each individual
 * Post.updated.ct: cell.type fraction estimates using updated reference
     + theta: cell.types fraction estimates for each individual with updated refernce
+* initial.reference: an S4 object with scRNA based prior information as reference
+* updated.reference: an S4 object with updated reference
 
 
-ii. deconvolution with BayesPrism
+**ii. deconvolution with BayesPrism**
 ```{r,eval=FALSE}
 start.time = Sys.time()
 bp.res.updated = run.prism(bp.obj,update.gibbs = T)
@@ -246,9 +291,9 @@ bp_updated_running_time = difftime(end.time, start.time,units = 'secs') %>% as.n
 save(bp.res.updated,bp_updated_running_time,file = 'extdata/tutorial_example1/bp.res.updated.RData')
 ```
 
-iii. deconvolution results comparison \
+**iii. deconvolution results comparison**
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cell.type estimation from both methods are highly correlated 
+cell.type estimation from both methods are highly correlated 
 
 ```{r,include=FALSE}
 load('extdata/tutorial_example1/bp.res.updated.RData')
@@ -266,19 +311,18 @@ ComplexHeatmap::Heatmap(corr,show_row_dend = F,show_column_dend = F,column_title
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; InstaPrism significantly accelerates the deconvolution speed using the updated reference.
 
-```{r,fig.align='center',fig.width=4.7,fig.height=2.45}
+```{r,fig.align='center',fig.width=4.3,fig.height=2.45}
+InstaPrism_updated_running_time = as.numeric(elp$toc - elp$tic)
 rt=data.frame(method=c('InstaPrism','BayesPrism'),
               time=c(InstaPrism_updated_running_time,bp_updated_running_time))
 rt$time=round(rt$time,2)
 ggplot(rt,aes(method,time))+
-  geom_bar(stat="identity",fill='grey',width = 0.5)+
+  geom_bar(stat="identity",fill='grey',width = 0.4)+
   theme_bw()+
   ylab('time (secs)')+
   geom_text(aes(label = time), vjust = -0.2)+
   ylim(0,max(rt$time)*1.05)
 ```
-
-
 
 ## Example 2: deconvolution on the tutorial data from BayesPrism
 \
@@ -291,7 +335,6 @@ Note that it takes more than 6 hours to run the following code from our end (usi
 ```{r,eval=FALSE}
 library(BayesPrism)
 load('extdata/tutorial_example2/tutorial.gbm.rdata')
-
 sc.stat <- plot.scRNA.outlier(
   input=sc.dat, #make sure the colnames are gene symbol or ENSMEBL ID 
   cell.type.labels=cell.type.labels,
@@ -307,18 +350,15 @@ bk.stat <- plot.bulk.outlier(
   return.raw=TRUE
   #pdf.prefix="gbm.bk.stat" specify pdf.prefix if need to output to pdf
 )
-
 # Filter outlier genes from scRNA-seq data
 sc.dat.filtered <- cleanup.genes (input=sc.dat,
                                   input.type="count.matrix",
                                     species="hs", 
                                     gene.group=c( "Rb","Mrp","other_Rb","chrM","MALAT1","chrX","chrY") ,
                                     exp.cells=5)
-
 # Subset protein coding genes
 sc.dat.filtered.pc <-  select.gene.type (sc.dat.filtered,
                                         gene.type = "protein_coding")
-
 # construct a prism object
 myPrism <- new.prism(
   reference=sc.dat.filtered.pc, 
@@ -330,14 +370,12 @@ myPrism <- new.prism(
   outlier.cut=0.01,
     outlier.fraction=0.1,
 )
-
 # run BayesPrism
 start.time = Sys.time()
 bp.res <- run.prism(prism = myPrism, n.cores=16,update.gibbs=T) # set update.gibbs=T for full comparison between two methods
 end.time=Sys.time()
 bp_running_time = difftime(end.time, start.time,units = 'mins') %>% as.numeric()
 save(bp.res,bp_running_time,file = 'extdata/tutorial_example2/bp.res.RData')
-
 ```
 \
 Alternatively, users can download the processed results directly from [zenodo](https://zenodo.org/record/7730658) repository
@@ -345,6 +383,7 @@ Alternatively, users can download the processed results directly from [zenodo](h
 load('extdata/tutorial_example2/bp.res.RData')
 ```
 \
+
 
 #### Step 2. Run InstaPrism 
 
@@ -361,11 +400,11 @@ end.time=Sys.time()
 InstaPrism_running_time = difftime(end.time, start.time,units = 'mins') %>% as.numeric()
 ```
 
-For comparison of initial fraction estimates only, set `update=F`. (Note that by setting `update=F`, we no longer have the `Post.updated.ct` object.)\
+For comparison of initial fraction estimates only, set `update = F`. (Note that by setting `update=F`, we no longer have the `Post.updated.ct` object.)\
 
 ```{r,eval=FALSE}
 start.time = Sys.time()
-InstaPrism.res2 = InstaPrism(input_type = 'prism',prismObj = bp.res@prism,update=F,n.iter = 100,n.core=16) 
+InstaPrism.res2 = InstaPrism(input_type = 'prism',prismObj = bp.res@prism, update=F, n.iter = 100, n.core=16) 
 end.time=Sys.time()
 InstaPrism_running_time2 = difftime(end.time, start.time,units = 'mins') %>% as.numeric()
 save(InstaPrism.res,InstaPrism_running_time,InstaPrism_running_time2,file = 'extdata/tutorial_example2/InstaPrism.res.RData')
@@ -460,7 +499,7 @@ where we assign the malignant cells with different cell.states by their patient 
 
 
 #### Step 2. Run InstaPrism
-```{r}
+```{r,results='hide'}
 InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr = simulated_bulk,
                             cell.type.labels = cell.type.labels, cell.state.labels = cell.state.labels, 
                             n.iter = 100,n.core = 16)
@@ -541,18 +580,18 @@ InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr 
 
 * **convergence.plot**: a logical variable determining whether to visualize convergence status for cell types.   
 Again, using `example3.RData` as a demonstration, first let's consider the scenario when`n.iter` is set too low. According to the convergence plot, fraction estimates for malignant cells did not converge. This means that we should set higher value of `n.iter`.
-```{r,fig.align='center',fig.width=10,fig.height=4.5}
+```{r,fig.align='center',fig.width=10,fig.height=4.5,results='hide'}
 InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr = simulated_bulk,
                             cell.type.labels = cell.type.labels, cell.state.labels = cell.state.labels, 
-                            n.iter = 20,n.core = 16,convergence.plot=T)
+                            n.iter = 20,n.core = 16,convergence.plot=T,max_n_per_plot = 100)
 ```
 
 Now, let's try using a higher value of `n.iter`. 
 This time we get fraction estimation for all the cell types converge (with all the abs_diff less than 0.01). 
-```{r,fig.align='center',fig.width=10,fig.height=4.5}
+```{r,fig.align='center',fig.width=10,fig.height=4.5,results='hide'}
 InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr = simulated_bulk,
                             cell.type.labels = cell.type.labels, cell.state.labels = cell.state.labels, 
-                            n.iter = 100,n.core = 16,convergence.plot=T)
+                            n.iter = 100,n.core = 16,convergence.plot=T,max_n_per_plot = 100)
 ```
 
 

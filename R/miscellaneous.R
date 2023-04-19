@@ -57,7 +57,7 @@ norm.to.one <- function(ref,
 
 }
 
-#' function to filter bulk outliers (integrated into new.prism)
+#' function to filter bulk outliers (adapted from BayesPrism)
 #' @param mixture the bulk RNA-seq matrix (#of samples * # of genes).
 #' @param outlier.cut & outlier.fraction: Filter genes in mixture whose expression fraction is greater than outlier.cut
 #'		in more than outlier.fraction of bulk data. Removal of outlier genes will ensure that the inference will not be dominated by outliers.
@@ -71,7 +71,7 @@ filter.bulk.outlier <- function(mixture,
 
   outlier.idx <- colSums(mixture.norm > outlier.cut) / nrow(mixture.norm) > outlier.fraction
   mixture <- mixture[, !outlier.idx, drop=F]
-  cat("Number of outlier genes filtered from mixture =", sum(outlier.idx),"\n")
+  # cat("Number of outlier genes filtered from mixture =", sum(outlier.idx),"\n")
 
   return(mixture)
 }

@@ -26,92 +26,59 @@ build_ref_matrix<-function(Expr,cell_type_labels){
 fastPost.ini.cs.cpp<-function(bulk_Expr,ref,n.iter,n.core=1){
   cms=intersect(rownames(bulk_Expr),rownames(ref))
   ref=ref[cms,]
-  cl<- parallel::makeCluster(n.core)
-  res.list=parallel::parApply(cl,bulk_Expr[cms,],2,function(x) InstaPrism:::bpFixedPointCPP(bulk=matrix(x),ref=ref,n_iter = n.iter))
-  parallel::stopCluster(cl)
 
-  theta=mapply(`[[`, res.list, 1)
-  rownames(theta)=colnames(ref)
-  N <- ncol(bulk_Expr)
-  G <- length(cms)
-  K <- ncol(ref)
-  Z=array(NA,
-          dim = c(N,G,K),
-          dimnames=list(colnames(bulk_Expr), cms, colnames(ref)))
-  for (n in 1:N){
-    Z[n,,]=res.list[[n]]$perCell
-  }
+  pboptions(type = "txt", style = 3, char = "=")
+  res.list=pbapply(bulk_Expr[cms,,drop=F],2,function(x) InstaPrism:::bpFixedPointCPP(bulk=matrix(x),ref=ref,n_iter = n.iter),cl = n.core)
 
-  theta_pre=mapply(`[[`, res.list, 3)
-  rownames(theta_pre)=colnames(ref)
-
-  return(list(posterior=new('posterior',theta=theta,Z=Z),
-              dif_cs = abs(theta-theta_pre)))
+  return(res.list)
 }
 
 
 #' Merge posterior information over cell states
-#' @describeIn Function to merge posterior information over cell states within each cell type
-#' @param jointPost.obj an S4 posterior object returned by fastPost.ini.cs() function
+#' @description Function to merge posterior information over cell states within each cell type
+#' @param Z a 3d array of cell.state specific expression
 #' @param map a list of the format list(cell.type1=c(cell.stateA, cell.stateB), ...)
 #' @export
-mergeK_adapted <- function(jointPost.obj,
-                           map){
+merge_Z <- function(Z, map){
 
-  bulkID <- dimnames(jointPost.obj@Z)[[1]]
-  geneID <- dimnames(jointPost.obj@Z)[[2]]
-  cellType <- dimnames(jointPost.obj@Z)[[3]]
+  bulkID <- dimnames(Z)[[1]]
+  geneID <- dimnames(Z)[[2]]
+  cellState <- dimnames(Z)[[3]]
   cellType.merged <- names(map)
 
   N <- length(bulkID)
   G <- length(geneID)
-  K <- length(cellType)
+  K <- length(cellState)
   K_merged <- length(cellType.merged)
 
   stopifnot(length(unlist(map)) == K)
 
-  Z <- array(NA,
+  Z.ct <- array(NA,
              dim = c(N, G, K_merged),
              dimnames=list(bulkID, geneID, cellType.merged))
-
-  theta.cs=jointPost.obj@theta
-  theta.ct <- do.call(rbind,lapply(map,function(x)colSums(theta.cs[rownames(theta.cs) %in% x,,drop=F])))
 
   for (k in 1:K_merged){
     cellType.merged.k <- names(map)[k]
     cellTypes.k <- map[[k]]
-    Z[,, cellType.merged.k] <- rowSums(jointPost.obj@Z[,,cellTypes.k, drop=F], dims=2)
+    Z.ct[,, cellType.merged.k] <- rowSums(Z[,,cellTypes.k, drop=F], dims=2)
   }
-  return(new('posterior',theta=theta.ct,Z=Z))
+  return(Z.ct)
 }
 
 
-#' functions to prepare reference matrices and map
+#' function to make refPhi or refPhi_cs from single cell
 #' @param sc_Expr single cell expression with genes in rows and cells in columns
-#' @param bulk_Expr bulk expression matrix to deconvolute
 #' @param cell.type.labels a character vector indicating cell types of each cell
 #' @param cell.state.labels a character vector indicating cell state of each cell
-#' @param outlier.cut & outlier.fraction: Filter genes in mixture whose expression fraction is greater than outlier.cut (Default=0.01)
-#'		in more than outlier.fraction (Default=0.1) of bulk data. Removal of outlier genes will ensure that the inference will not be
-#'		dominated by outliers. These two parameters denote the same thing as in new.prism() function from BayesPrism package.
 #' @param pseudo.min the desired min values to replace zero after normalization
-#' @keywords internal
-#' @noRd
-bpPrepare<-function(sc_Expr,bulk_Expr,
-                    cell.type.labels,cell.state.labels,
-                    outlier.cut=0.01,outlier.fraction=0.1,pseudo.min=1E-8){
-
-  sc_Expr <- sc_Expr[rowSums(sc_Expr)>0,]
-  bulk_Expr=t(filter.bulk.outlier(t(bulk_Expr),outlier.cut=outlier.cut,outlier.fraction=outlier.fraction))
+#' @export
+refPrepare <-function(sc_Expr,cell.type.labels,cell.state.labels,pseudo.min=1E-8,
+                      output_class = c('refPhi','refPhi_cs')){
+  sc_Expr <- sc_Expr[Matrix::rowSums(sc_Expr)>0,]
 
   # collapse reference
   ref.cs=build_ref_matrix(sc_Expr,cell.state.labels)
   ref.ct=build_ref_matrix(sc_Expr,cell.type.labels)
-
-  # align reference and mixture
-  cms=intersect(rownames(sc_Expr),rownames(bulk_Expr))
-  ref.cs=ref.cs[cms,]
-  ref.ct=ref.ct[cms,]
 
   # normalize
   ref.cs=norm.to.one(t(ref.cs),pseudo.min) %>% t()
@@ -123,11 +90,105 @@ bpPrepare<-function(sc_Expr,bulk_Expr,
     map[[ct]]=unique(cell.state.labels[i])
   }
 
-  return(new("bpPrepare",
-             phi.cs=ref.cs,
-             phi.ct=ref.ct,
-             bulk_mixture=bulk_Expr[cms,],
-             map=map))
+  if(output_class == 'refPhi'){
+    return(new('refPhi',
+               phi.cs=ref.cs,
+               phi.ct=ref.ct,
+               map=map))
+  }else if(output_class =='refPhi_cs'){
+    return(new('refPhi_cs',
+               phi.cs=ref.cs,
+               map=map))
+  }
+
+}
+
+
+#' function to prepare reference matrices and map for InstaPrism
+#' @param input_type one of the following input_type is allowed: 'raw', 'refPhi' and 'refPhi_cs'.
+#'       With 'raw', need to specify the following input manually: sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels.
+#'       With 'refPhi', need to specify a refPhi object. With 'refPhi_cs', need to specify a refPhi_cs object
+#' @param bulk_Expr bulk expression matrix to deconvolute, with genes in rows and samples in columns
+#' @param sc_Expr single cell expression with genes in rows and cells in columns
+#' @param cell.type.labels a character vector indicating cell types of each cell
+#' @param cell.state.labels a character vector indicating cell state of each cell
+#' @param filter a logical variable to determine whether to filter the bulk expression or not
+#' @param outlier.cut & outlier.fraction: Filter genes in mixture whose expression fraction is greater than outlier.cut (Default=0.01)
+#'		in more than outlier.fraction (Default=0.1) of bulk data. Removal of outlier genes will ensure that the inference will not be
+#'		dominated by outliers. These two parameters denote the same thing as in new.prism() function from BayesPrism package.
+#' @param pseudo.min the desired min values to replace zero after normalization
+#' @param refPhi a refPhi object with pre-defined scRNA-seq reference phi and map
+#' @keywords internal
+#' @noRd
+
+bpPrepare<-function(input_type=c('raw','refPhi','refPhi_cs'),
+                    sc_Expr = NULL,
+                    cell.type.labels = NULL,cell.state.labels = NULL,
+                    bulk_Expr, filter = TRUE,
+                    outlier.cut=0.01,outlier.fraction=0.1,pseudo.min=1E-8,
+                    refPhi = NULL, refPhi_cs = NULL){
+
+  if(filter==TRUE){
+    bulk_Expr=t(filter.bulk.outlier(t(bulk_Expr),outlier.cut=outlier.cut,outlier.fraction=outlier.fraction))
+  }
+
+  if(input_type=='raw'){
+    sc_Expr <- sc_Expr[Matrix::rowSums(sc_Expr)>0,]
+
+    # collapse reference
+    ref.cs=build_ref_matrix(sc_Expr,cell.state.labels)
+    ref.ct=build_ref_matrix(sc_Expr,cell.type.labels)
+
+    # align reference and mixture
+    cms=intersect(rownames(sc_Expr),rownames(bulk_Expr))
+    ref.cs=ref.cs[cms,]
+    ref.ct=ref.ct[cms,]
+
+    # normalize
+    ref.cs=norm.to.one(t(ref.cs),pseudo.min) %>% t()
+    ref.ct=norm.to.one(t(ref.ct),pseudo.min) %>% t()
+
+    map=list()
+    for (ct in unique(cell.type.labels)){
+      i=which(cell.type.labels==ct)
+      map[[ct]]=unique(cell.state.labels[i])
+    }
+
+    out = new("bpPrepareObj",
+              phi.cs=ref.cs,
+              phi.ct=ref.ct,
+              bulk_mixture=bulk_Expr[cms,,drop=F],
+              map=map)
+
+  }else if(input_type == 'refPhi'){
+    cms = intersect(rownames(refPhi@phi.cs),rownames(bulk_Expr))
+
+    ref.cs = refPhi@phi.cs[cms,]
+    ref.ct = refPhi@phi.ct[cms,]
+
+    # normalize
+    ref.cs=norm.to.one(t(ref.cs),pseudo.min) %>% t()
+    ref.ct=norm.to.one(t(ref.ct),pseudo.min) %>% t()
+
+    out = new("bpPrepareObj",
+              phi.cs=ref.cs,
+              phi.ct=ref.ct,
+              bulk_mixture=bulk_Expr[cms,,drop=F],
+              map=refPhi@map)
+  }else if(input_type == 'refPhi_cs'){
+    cms = intersect(rownames(refPhi_cs@phi.cs),rownames(bulk_Expr))
+    ref.cs = refPhi_cs@phi.cs[cms,]
+
+    # normalize
+    ref.cs=norm.to.one(t(ref.cs),pseudo.min) %>% t()
+
+    out = new("bpPrepareObj",
+              phi.cs=ref.cs,
+              phi.ct=matrix(NA),
+              bulk_mixture=bulk_Expr[cms,,drop=F],
+              map=refPhi_cs@map)
+  }
+  return(out)
 }
 
 #' function that updates the reference matrix based on initial theta
@@ -150,7 +211,8 @@ updateReference_adapated <- function(Z,
                                      opt.control,
                                      pseudo.min=1E-8){
 
-  cat("Update the reference matrix ... \n")
+  cat('\n')
+  cat("Update the reference matrix \n")
 
   sigma <- opt.control$sigma
   opt.control$sigma <- NULL
@@ -173,7 +235,7 @@ updateReference_adapated <- function(Z,
                                     Z_gt = Z_gt,
                                     opt.control = opt.control)$psi
     }
-    return(new("refPhi", phi = psi))
+    return(new("bpRefPhi", phi = psi))
   }
   else{
     # if reference for maligant cells is present
@@ -201,7 +263,7 @@ updateReference_adapated <- function(Z,
                                         Z_gt = Z_gt_env,
                                         opt.control = opt.control)$psi
     }
-    return(new("refTumor",
+    return(new("bpRefTumor",
                psi_mal = psi_mal,
                psi_env = psi_env,
                key = key))}
@@ -215,8 +277,8 @@ updateReference_adapated <- function(Z,
 #' @param n.iter number of iteration
 #' @param n.core number of cores to use for parallel programming. Default = 1
 #' @export
-fastPost.updated.ct.cpp<-function(bulk_Expr,updated_phi,n.iter, n.core=1){
-  # for refTumor only
+fastPost.updated.ct.cpp<-function(bulk_Expr,updated_phi,n.iter, n.core){
+  # for bpRefTumor only
   stopifnot(nrow(bulk_Expr)==ncol(updated_phi@psi_mal))
   psi_mal=updated_phi@psi_mal
   psi_env=updated_phi@psi_env
@@ -228,13 +290,11 @@ fastPost.updated.ct.cpp<-function(bulk_Expr,updated_phi,n.iter, n.core=1){
     pp = InstaPrism:::bpFixedPointCPP(matrix(bulk_Expr[,n]),ref,n_iter = n.iter)$pp
   }
 
-  cl<- parallel::makeCluster(n.core)
-  theta=do.call(cbind,parallel::parLapply(cl,sapply(1:N, list),wrap))
-  parallel::stopCluster(cl)
+  pboptions(type = "txt", style = 3, char = "=")
+  theta=do.call(cbind,pblapply(sapply(1:N, list),wrap,cl = n.core))
 
   colnames(theta)=colnames(bulk_Expr)
   rownames(theta)=c(updated_phi@key,rownames(psi_env))
-
 
   return(new('theta',theta=theta))
 }
@@ -242,79 +302,183 @@ fastPost.updated.ct.cpp<-function(bulk_Expr,updated_phi,n.iter, n.core=1){
 #' Run InstaPrism deconvolution
 #' @description A fast version of BayesPrism deconvolution, takes single cell profiles as prior information
 #'      and returns cellular composition estimation for a bulk expression matrix.
-#' @param input_type either 'raw' or 'prism'. With 'raw', need to specify the following input manually:
-#'       sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels
-#' @param sc_Expr single cell expression matrix, with genes in rows and cells in columns
-#' @param bulk_Expr bulk expression to deconvolute, with genes in rows and samples in columns
+#' @param input_type one of the following input_types are allowed: 'raw', 'prism', 'refPhi' and 'refPhi_cs'.
+#'       With 'raw', need to specify the following input manually: sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels.
+#'       With 'prism', need to provide a prism object. With 'refPhi', need to provide refPhi and bulk_Expr.
+#'       With 'refPhi_cs', need to provide refPhi_cs and bulk Expr
+#' @param sc_Expr single cell expression matrix (without log transformation), with genes in rows and cells in columns, required when input_type = T
+#' @param bulk_Expr bulk expression to deconvolute (without log transformation), with genes in rows and samples in columns
 #' @param cell.type.labels a character vector indicating cell types of each cell in sc_Expr
 #' @param cell.state.labels a character vector indicating cell states of each cell in sc_Expr
+#' @param filter a logical vatiable to determine whether to filter genes in bulk_Expr or not
 #' @param outlier.cut Filter genes in bulk mixture whose expression fraction is greater than outlier.cut (Default=0.01)
-#'		  in more than outlier.fraction (Default=0.1) of bulk data. Removal of outlier genes will ensure that the inference will not be
+#'		  in more than outlier.fraction (Default=0.01) of bulk data. Removal of outlier genes will ensure that the inference will not be
 #'		  dominated by outliers. This parameter denotes the same thing as in new.prism() function from BayesPrism package.
 #' @param outlier.fraction Filter genes in bulk mixture whose expression fraction is greater than outlier.cut (Default=0.01)
 #'		  in more than outlier.fraction (Default=0.1) of bulk data. Removal of outlier genes will ensure that the inference will not be
 #'		  dominated by outliers. This parameter denotes the same thing as in new.prism() function from BayesPrism package.
 #' @param pseudo.min the desired min values to replace zero after normalization. Default = 1E-8
 #' @param prismObj a Prism object, required when input_type='prism'
+#' @param refPhi a refPhi object with single cell reference phi information, required when input_type='refPhi'
+#' @param refPhi_cs a refPhi_cs object with single cell reference phi information (cell state only), required when input_type='refPhi_cs'
 #' @param n.iter number of iterations in InstaPrism algorithm. Default = max(20, number of cell.states * 2)
 #' @param update a logical variable to denote whether return deconvolution result with the updated theta. When True,
-#'      InstaPrism will implement the updateReference module from Bayesprism. Default=F.
-#' @param key a charater string to denote the word that corresponds to the malignant cell type, need to be define when update = T.
-#'		  Set to NULL if there is no malignant cells in the problem
+#'      InstaPrism will implement the updateReference module from Bayesprism. Default = F
 #' @param optimizer a character string to denote which algorithm to use. Can be either "MAP" or "MLE", required when update=T.
 #'      This parameter denotes the same thing as in the updateReference() function from BayesPrism.
 #' @param opt.control a list containing the parameters to control optimization. Set opt.control = NULL for default settings as from package BayesPrism
+#' @param key a character string to denote the word that corresponds to the malignant cell type, need to be define when update = T.
+#'		  Set to NA if there is no malignant cells in the problem
 #' @param return.Z.cs a logical variable determining whether to return cell.state specific gene expression, use default=FALSE to save memory
 #' @param return.Z.ct a logical variable determining whether to return cell.type specific gene expression, use default=FALSE to save memory
 #' @param verbose a logical variable determining whether to display convergence status of the model. Default = F
 #' @param convergence.plot a logical variable determining whether to visualize convergence status for cell types
+#' @param max_n_per_plot max number of samples to visualize in one convergence plot
 #' @param n.core number of cores to use for parallel programming. Default = 1
 #' @param snowfall.ncore number of cores to use for reference update. Default = 1
 #'
-#' @return a list containing cellular fraction estimates, summarized at both cell type level and cell state level
+#' @return an InstaPrism object containing posterior information for cell states and cell types,
+#'      which includes theta (fraction estimates), and Z (cellular component specific expression, optional)
 #' @export
+#'
+InstaPrism<-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
+                     sc_Expr=NULL,bulk_Expr=NULL,
+                     cell.type.labels=NULL,cell.state.labels=NULL,
+                     filter=TRUE,
+                     outlier.cut=0.01,outlier.fraction=0.1,
+                     pseudo.min=1E-8,
+                     prismObj=NULL,
+                     refPhi=NULL,
+                     refPhi_cs=NULL,
+                     n.iter=NULL,
+                     update=F,optimizer='MAP',opt.control=NULL,key=NA,
+                     return.Z.cs=F,
+                     return.Z.ct=F,
+                     verbose=F,
+                     convergence.plot=F,max_n_per_plot=50,
+                     n.core=1,
+                     snowfall.ncore=1){
 
-InstaPrism<-function(input_type=c('raw','prism'),
-                 sc_Expr=NULL,bulk_Expr=NULL,
-                 cell.type.labels=NULL,cell.state.labels=NULL,
-                 outlier.cut=0.01,outlier.fraction=0.1,pseudo.min=1E-8,key=NA,
-                 prismObj=NULL,
-                 n.iter=NULL,
-                 update=F,optimizer='MAP',opt.control=NULL,
-                 return.Z.cs=F,
-                 return.Z.ct=F,
-                 verbose=F,
-                 convergence.plot=F,
-                 n.core=1,
-                 snowfall.ncore=1){
-  if(is.null(n.iter)){
-    n.iter = max(20,length(unique(cell.state.labels)))
-  }
   if(input_type=='raw'){
-    bp=bpPrepare(sc_Expr,bulk_Expr,cell.type.labels,cell.state.labels,outlier.cut,outlier.fraction,pseudo.min=pseudo.min)
 
-    rl = fastPost.ini.cs.cpp(bp@bulk_mixture,bp@phi.cs,n.iter,n.core)
+    if(any(is.null(sc_Expr),is.null(cell.type.labels),is.null(cell.state.labels),is.null(bulk_Expr))){
+      stop('Need to specify all raw input objects. One or more input objects from the following is missing: sc_Expr, cell.type.labels, cell.state.labels, bulk_Expr')
+    }
 
-    Post.ini.cs= rl$posterior
-    dif_cs = rl$dif_cs
+    if(is.null(n.iter)){
+      n.iter = max(20, 2*length(unique(cell.state.labels)))
+    }
+
+    bp=bpPrepare(input_type='raw',
+                 sc_Expr,
+                 cell.type.labels,cell.state.labels,
+                 bulk_Expr,filter,
+                 outlier.cut,outlier.fraction,
+                 pseudo.min)
+
+    cat('deconvolution with scRNA reference phi \n')
+    res.list = fastPost.ini.cs.cpp(bp@bulk_mixture,bp@phi.cs,n.iter,n.core)
 
     map=bp@map
     bulk_mixture=bp@bulk_mixture
-    phi.ct=t(bp@phi.ct)
+    initial.reference = new('initial_reference',
+                            phi.cs = t(bp@phi.cs),
+                            phi.ct = t(bp@phi.ct))
+    cms = intersect(rownames(bp@bulk_mixture),rownames(bp@phi.cs))
+    cell.states = colnames(bp@phi.cs)
+
   }else if(input_type=='prism'){
 
-    rl = fastPost.ini.cs.cpp(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter,n.core)
+    if(is.null(prismObj)){
+      stop('Need to specify a prismObj when input_type = "prism"')
+    }
 
-    Post.ini.cs=rl$posterior
-    dif_cs = rl$dif_cs
+    if(is.null(n.iter)){
+      n.iter = max(20, 2*nrow(prismObj@phi_cellState@phi))
+    }
+
+    cat('deconvolution with scRNA reference phi \n')
+    res.list = fastPost.ini.cs.cpp(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter,n.core)
 
     map=prismObj@map
     bulk_mixture=t(prismObj@mixture)
-    phi.ct=prismObj@phi_cellType@phi
-    key=prismObj@key
+
+    initial.reference = new('initial_reference',
+                            phi.cs = prismObj@phi_cellState@phi,
+                            phi.ct = prismObj@phi_cellType@phi)
+    cms = intersect(colnames(prismObj@mixture),colnames(prismObj@phi_cellState@phi))
+    cell.states = rownames(prismObj@phi_cellState@phi)
+
+    # key=prismObj@key
+
+  }else if(input_type=='refPhi'){
+    if(any(is.null(refPhi),is.null(bulk_Expr))){
+      stop('Need to specify refPhi and bulk_Expr when input_type = "refPhi"')
+    }
+
+    if(is.null(n.iter)){
+      n.iter = max(20, 2* ncol(refPhi@phi.cs))
+    }
+
+    bp = bpPrepare(input_type = 'refPhi',
+                   bulk_Expr = bulk_Expr,
+                   filter = filter,
+                   outlier.cut=outlier.cut,
+                   outlier.fraction=outlier.fraction,
+                   pseudo.min=pseudo.min,
+                   refPhi = refPhi)
+
+    cat('deconvolution with scRNA reference phi \n')
+    res.list = fastPost.ini.cs.cpp(bp@bulk_mixture,bp@phi.cs,n.iter,n.core)
+
+    map=bp@map
+    bulk_mixture=bp@bulk_mixture
+    initial.reference = new('initial_reference',
+                            phi.cs = t(bp@phi.cs),
+                            phi.ct = t(bp@phi.ct))
+    cms = intersect(rownames(bp@bulk_mixture),rownames(bp@phi.cs))
+    cell.states = colnames(bp@phi.cs)
+
+  }else if(input_type=='refPhi_cs'){
+    if(any(is.null(refPhi_cs),is.null(bulk_Expr))){
+      stop('Need to specify refPhi and bulk_Expr when input_type = "refPhi"')
+    }
+
+    if(is.null(n.iter)){
+      n.iter = max(20, 2* ncol(refPhi_cs@phi.cs))
+    }
+
+    bp = bpPrepare(input_type = 'refPhi_cs',
+                   bulk_Expr = bulk_Expr,
+                   filter = filter,
+                   outlier.cut=outlier.cut,
+                   outlier.fraction=outlier.fraction,
+                   pseudo.min=pseudo.min,
+                   refPhi_cs = refPhi_cs)
+
+    cat('deconvolution with scRNA reference phi \n')
+    res.list = fastPost.ini.cs.cpp(bp@bulk_mixture,bp@phi.cs,n.iter,n.core)
+
+    map=bp@map
+    bulk_mixture=bp@bulk_mixture
+    phi.ct=NA
+    cms = intersect(rownames(bp@bulk_mixture),rownames(bp@phi.cs))
+    cell.states = colnames(bp@phi.cs)
+
   }
 
+  theta=mapply(`[[`, res.list, 1)
+  rownames(theta)=cell.states
+
+  theta_pre=mapply(`[[`, res.list, 3)
+  rownames(theta_pre)=cell.states
+
+  dif_cs = abs(theta-theta_pre)
   dif_ct = do.call(rbind,lapply(map,function(x)colSums(dif_cs[rownames(dif_cs) %in% x,,drop=F])))
+
+  # cat('merge information from cell states to cell types \n')
+  theta.ct = do.call(rbind,lapply(map,function(x)colSums(theta[rownames(theta) %in% x,,drop=F])))
+
 
   if(any(dif_ct>0.01)){
     warning("fraction estimation didn't converge for some samples, enable convergence.plot for details and try larger n.iter")
@@ -327,69 +491,193 @@ InstaPrism<-function(input_type=c('raw','prism'),
     conv_ct=t(dif_ct) %>% as.data.frame() %>% gather(key = 'cell.type',value = 'abs_diff') %>%
       group_by(cell.type) %>% summarise(min=min(abs_diff),median = median(abs_diff),max = max(abs_diff)) %>% as.data.frame()
 
-    cat('==================== convergence status summary ================== \n',
+    cat('\n',
+        '\n')
+    cat(' ********************** convergence status summary ********************** \n',
         'instructions: \n',
         'the absolute difference in fraction estimates between the last two iterations is utilized as an indicator of convergence, \n',
         'with smaller values indicating convergence (usually consider abs_diff < 0.01 as convergence), \n',
-        'below is a summarized convergence status for cell.states/cell.types across all the samples')
+        'below is a summarized convergence status for cell.states/cell.types across all the samples \n ',
+        '\n')
 
-    cat('=============== convergence status summary for cell states ============== \n')
+    cat(' *************** convergence status summary for cell states *************** \n')
     print(conv_cs)
 
-    cat('=============== convergence status summary for cell types ============== \n')
+    cat('\n')
+    cat(' *************** convergence status summary for cell types *************** \n')
     print(conv_ct)
+
+    cat('\n',
+        '******************* end of convergence status summary ******************** \n',
+        '\n')
+
   }
   if(convergence.plot==T){
-    show_colnames=ifelse(ncol(dif_ct)>100,F,T)
-    pheatmap::pheatmap(dif_ct,cluster_rows = F,cluster_cols = F,color = hcl.colors(50, "OrRd") %>% rev () ,
-                       breaks = seq(0,0.02, length.out=50),show_colnames=show_colnames,main = 'Convergence status for cell types')
+
+    if(input_type=='prism'){
+      n_bulk = nrow(prismObj@mixture)
+    }else{
+      n_bulk = ncol(bulk_Expr)
+    }
+
+    bulk_index = seq(1,n_bulk)
+    bulk_schedular = split(bulk_index, ceiling(seq_along(bulk_index) / max_n_per_plot))
+
+    cat('\n')
+    if(length(bulk_schedular)==1){
+      cat(paste('display convergence quality check plot in',length(bulk_schedular), 'plot \n'))
+    }else{
+      cat(paste('display convergence quality check plot in',length(bulk_schedular), 'different plots \n'))
+    }
+
+    for(j in 1:length(bulk_schedular)){
+      pheatmap::pheatmap(dif_ct[,bulk_schedular[[j]]],cluster_rows = F,cluster_cols = F,color = hcl.colors(50, "OrRd") %>% rev () ,
+                         breaks = seq(0,0.02, length.out=50),show_colnames=T,main = 'Convergence status for cell types')
+
+    }
   }
 
-  Post.ini.ct=mergeK_adapted(Post.ini.cs,map=map)
-
   if(return.Z.cs==T){
-    Post.ini.cs = Post.ini.cs
-    if (nrow(Post.ini.cs@theta)>10 & update==T){
+    cat('\n')
+    cat('wrap up cell state specific expression \n')
+    if(update == T & length(cell.states) > 20 & ncol(bulk_mixture) >= 100){
       warning('R memory limit warning: too much data in memory, set return.Z.cs = F to save memory')
     }
 
+    N <- ncol(bulk_mixture)
+    G <- length(cms)
+    K <- length(cell.states)
+    Z=array(NA,
+            dim = c(N,G,K),
+            dimnames=list(colnames(bulk_mixture), cms, cell.states))
+
+    pb <- txtProgressBar(min = 0,
+                         max = N,
+                         style = 3,
+                         width = 50,
+                         char = "=")
+
+    for (n in 1:N){
+      Z[n,,]=res.list[[n]]$perCell
+      setTxtProgressBar(pb, n)
+    }
+    close(pb)
+
+    Post.ini.cs = new('posterior',theta=theta, Z=Z)
   }else{
-    Post.ini.cs = new('theta',theta=Post.ini.cs@theta)
+    Post.ini.cs = new('theta',theta=theta)
   }
-  gc()
+
+  if(return.Z.ct==T){
+    cat('\n')
+    cat('wrap up cell type specific expression \n')
+    if(return.Z.cs==T){
+      Z = Post.ini.cs@Z
+    }else{
+      N <- ncol(bulk_mixture)
+      G <- length(cms)
+      K <- length(cell.states)
+      Z=array(NA,
+              dim = c(N,G,K),
+              dimnames=list(colnames(bulk_mixture), cms, cell.states))
+
+      pb <- txtProgressBar(min = 0,
+                           max = N,
+                           style = 3,
+                           width = 50,
+                           char = "=")
+
+      for (n in 1:N){
+        Z[n,,]=res.list[[n]]$perCell
+        setTxtProgressBar(pb, n)
+      }
+      close(pb)
+
+    }
+
+    Z.ct = merge_Z(Z,map)
+    gc()
+
+    Post.ini.ct =  new('posterior',theta = theta.ct, Z=Z.ct)
+  }else{
+    Post.ini.ct = new('theta', theta = theta.ct)
+  }
 
   if(update==F){
-    if(return.Z.ct==F){
-      Post.ini.ct = new('theta',theta = Post.ini.ct@theta)
-    }
+    rm(res.list)
     return(new('InstaPrism',Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct))
+  }else{
+    if(input_type=='refPhi_cs'){
+      stop('updatePhi is not available when input_type = "refPhi_cs"')
+    }
 
-  }else if(update==T){
     if(is.null(opt.control)){
       opt.control <- valid.opt.control(list(),snowfall.ncore)
     }
 
-    updated_phi=updateReference_adapated(Z = Post.ini.ct@Z,
-                                         phi = phi.ct,
+    if(return.Z.ct==T){
+      rm(res.list)
+      Z.ct = Post.ini.ct@Z
+    }else{
+      cat('\n')
+      cat('wrap up cell type specific expression \n')
+      if(return.Z.cs==T){
+        rm(res.list)
+        Z = Post.ini.cs@Z
+      }else{
+        N <- ncol(bulk_mixture)
+        G <- length(cms)
+        K <- length(cell.states)
+        Z=array(NA,
+                dim = c(N,G,K),
+                dimnames=list(colnames(bulk_mixture), cms, cell.states))
+
+        pb <- txtProgressBar(min = 0,
+                             max = N,
+                             style = 3,
+                             width = 50,
+                             char = "=")
+
+        for (n in 1:N){
+          Z[n,,]=res.list[[n]]$perCell
+          setTxtProgressBar(pb, n)
+        }
+        close(pb)
+
+      }
+      Z.ct = merge_Z(Z,map)
+      rm(res.list,Z)
+    }
+
+    updated_phi=updateReference_adapated(Z = Z.ct,
+                                         phi = initial.reference@phi.ct,
                                          map=map,
                                          key=key,
                                          optimizer=optimizer,
                                          opt.control=opt.control,
                                          pseudo.min=pseudo.min)
+
     gc()
 
-    if(is(updated_phi,'refTumor')){
-      message('deconvolution with the updated reference (using refTumor)')
+    if(is(updated_phi,'bpRefTumor')){
+      cat('deconvolution with the updated reference \n')
+
       Post.updated.ct=fastPost.updated.ct.cpp(bulk_mixture,updated_phi,n.iter,n.core)
-    }else if(is(updated_phi,'refPhi')){
-      message('deconvolution with the updated reference (using refPhi)')
-      Post.updated.ct=new('theta',theta=fastPost.ini.cs.cpp(bulk_mixture,t(updated_phi@phi),n.iter,n.core)$posterior@theta)
+
+    }else if(is(updated_phi,'bpRefPhi')){
+      cat('deconvolution with the updated reference \n')
+      Post.updated.ct.res.list = fastPost.ini.cs.cpp(bulk_mixture,t(updated_phi@phi),n.iter,n.core)
+      updated.theta.ct = mapply(`[[`, Post.updated.ct.res.list, 1)
+      rownames(updated.theta.ct)=rownames(updated_phi@phi)
+      Post.updated.ct = new('theta',theta = updated.theta.ct )
     }
-    if(return.Z.ct==F){
-      Post.ini.ct = new('theta',theta = Post.ini.ct@theta)
-    }
-    return(new('InstaPrismExtra',Post.ini.cs=Post.ini.cs,Post.ini.ct=Post.ini.ct,Post.updated.ct=Post.updated.ct))
+
+    gc()
+    return(new('InstaPrismExtra',Post.ini.cs=Post.ini.cs,
+               Post.ini.ct=Post.ini.ct,
+               Post.updated.ct=Post.updated.ct,
+               initial.reference=initial.reference,
+               updated.reference=updated_phi))
   }
 }
-
 
