@@ -16,3 +16,7 @@ provided in BayesPrism.
 
 ## Tutorial
 Check [InstaPrism_tumorial](https://humengying0907.github.io/InstaPrism_tutorial.html) for detailed implementation of InstaPrism and compare its performance with BayesPrism.
+
+## Reference
+M. Hu and M. Chikina, “InstaPrism: an R package for fast implementation of BayesPrism.” bioRxiv, p. 2023.03.07.531579, Mar. 12, 2023.
+doi: https://doi.org/10.1101/2023.03.07.531579
