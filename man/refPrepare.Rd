@@ -2,15 +2,9 @@
 % Please edit documentation in R/InstaPrism.R
 \name{refPrepare}
 \alias{refPrepare}
-\title{function to make refPhi or refPhi_cs from single cell}
+\title{function to make refPhi from single cell}
 \usage{
-refPrepare(
-  sc_Expr,
-  cell.type.labels,
-  cell.state.labels,
-  pseudo.min = 1e-08,
-  output_class = c("refPhi", "refPhi_cs")
-)
+refPrepare(sc_Expr, cell.type.labels, cell.state.labels, pseudo.min = 1e-08)
 }
 \arguments{
 \item{sc_Expr}{single cell expression with genes in rows and cells in columns}
@@ -19,8 +13,8 @@ refPrepare(
 
 \item{cell.state.labels}{a character vector indicating cell state of each cell}
 
-\item{pseudo.min}{the desired min values to replace zero after normalization}
+\item{pseudo.min}{pseudo.min value to replace zero for normalization. Default = 1E-8}
 }
 \description{
-function to make refPhi or refPhi_cs from single cell
+function to make refPhi from single cell
 }

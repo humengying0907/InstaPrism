@@ -6,7 +6,7 @@
 #' @param ref Numeric matrix
 #' @param n_iter Number of iterations (default is 20)
 #' @param ppguess Optional initial guess for proportion values
-#' @return List with pp and perCell values
+#' @return List with pp, perCell and pp_pre values
 #' @export
 NULL
 
