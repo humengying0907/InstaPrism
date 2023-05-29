@@ -1,6 +1,5 @@
 # InstaPrism
-**InstaPrism** is R package to deconvolute cellular proportion and gene expression in bulk RNA-Seq data. 
-It provides fast deconvolution implementation of [BayesPrism](https://github.com/Danko-Lab/BayesPrism) while maintaining highly comparable performance. 
+**InstaPrism** is R package to deconvolute cellular proportion and gene expression in bulk RNA-Seq data. Based on the same conceptual framework and corresponding generative mode from [BayesPrism](https://github.com/Danko-Lab/BayesPrism), **InstaPrism** re-implements BayesPrism in a derandomized framework by replacing the time-consuming Gibbs sampling steps in BayesPrism with a fixed-point algorithm, which greatly accelerated the calculation speed while maintaining highly comparable performance.
 ## Installation
 ```````
 library("devtools");
@@ -10,7 +9,8 @@ install_github("humengying0907/InstaPrism")
 Below is a running time comparsion when running deconvolution on the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) 
 provided in BayesPrism. 
 
-![fig4](https://user-images.githubusercontent.com/54827603/219739883-1b5c4f3b-e2cb-4843-a9d1-10e0381b17f8.png)
+
+![rt](https://github.com/humengying0907/InstaPrism/assets/54827603/992b2379-4b79-49e2-a2a8-af920025da9e)
 
 
 
