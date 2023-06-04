@@ -27,7 +27,7 @@ This tutorial is associated the latest version of InstaPrism (InstaPrism v0.1.4)
 * allows for selective reference update for cell.type of interest
 * introduces a 2-dimensional scaler matrix that can be used to reconstruct any cell.type specific expression of interest, as a memory-efficient alternative to the original 3-d Z array 
 * enables the output of cell-type-specific expression using the updated reference
-* InstaPrism() function associated with previous tutorial (InstaPrism v0.1.3) can be accessed using the InstaPrism_legacy() function\
+* `InstaPrism()` function associated with previous tutorial (InstaPrism v0.1.3) can be accessed using the `InstaPrism_legacy()` function\
 
 In this tutorial, we provide three examples of running **InstaPrism** and compare the results with BayesPrism.
 
@@ -73,8 +73,8 @@ data("sim.data")
 #### Step 2. Prepare input for InstaPrism and BayesPrism
 Both **InstaPrism** and BayesPrism take single cell profiles as prior information and return deconvolution results for a given bulk expression matrix. To prepare input for InstaPrism and BayesPrism, we need:
 
-* **scExpr**: a single-cell expression data as prior information (raw count or CPM normalized expression)
-* **bulk_Expr**: a bulk expression to run deconvolution (raw count or TPM normalized expression)
+* **scExpr**: a single-cell expression data as prior information (raw count or library size normalized expression, without log transformation and scaling)
+* **bulk_Expr**: a bulk expression to run deconvolution (raw count or library size normalized expression, without log transformation and scaling)
 * **cell.type.labels**: a character vector indicating cell types of each cell from the scRNA data
 * **cell.state.labels**: a character vector indicating cell states of each cell from the scRNA data
 
@@ -107,16 +107,6 @@ table(cell_state_labels)
 #### Step 3. Run deconvolution with InstaPrism and BayesPrism 
 \ 
 `InstaPrism()` is the main deconvolution function. Depending the format of single cell prior information to use, users need to specify the `input_type` argument passed to the function. The `InstaPrism()` function currently support **four** input_types.  \
-
-`InstaPrism()` function returns an S4 object containing the following information:
-
-* **Post.ini.cs**: posterior information for cell.states
-    + theta: cell.state fraction estimates for each individual
-* **Post.ini.ct**: posterior information for cell.types
-    + theta: cell.types fraction estimates for each individual
-* **map**: a list with mapping information from cell.states to cell.types
-* **initial.reference**: an S4 object with scRNA derived reference matrix at cell.type and cell.state levels
-* **initial.scaler**: a gene $\times$ sample matrix that can be used to reconstruct cell.state/cell.type specific expression \
 
 Note that in the following examples we will consider a simple implementation where we use prior information from the scRNA Seq directly, without the need to update reference.
 
@@ -189,7 +179,17 @@ refPhi_cs_obj = new('refPhi_cs',phi.cs = refPhi_obj@phi.cs[,-to_move_id],map = r
 
 InstaPrism.res4 = InstaPrism(input_type = 'refPhi_cs',bulk_Expr = bulk_Expr,refPhi_cs = refPhi_cs_obj)
 ```
+\
 
+`InstaPrism()` function returns an S4 object containing the following information:
+
+* **Post.ini.cs**: posterior information for cell.states
+    + theta: cell.state fraction estimates for each individual
+* **Post.ini.ct**: posterior information for cell.types
+    + theta: cell.types fraction estimates for each individual
+* **map**: a list with mapping information from cell.states to cell.types
+* **initial.reference**: an S4 object with scRNA derived reference matrix at cell.type and cell.state levels
+* **initial.scaler**: a gene $\times$ sample matrix that can be used to reconstruct cell.state/cell.type specific expression \
 
 **Run BayesPrism for comparison**
 
@@ -254,7 +254,6 @@ ggplot(rt,aes(method,time))+
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 ```
 
-\
 
 #### Step 5. Reconstruct cell.type specific expression
 The 2-dimensional initial.scaler matrix from the InstaPrism output can be used to reconstruct any cell.states/cell.types specific expression of interest, which serves as an extra memory-efficient alternative to the 3-dimensional Z array in the BayesPrism output.  \
@@ -369,13 +368,19 @@ In the above examples we only considered a simple scenario where we update all t
 * **theta**: cell state/type abundance matrix
 * psi_mal: a gene $\times$ sample reference matrix for malignant cells, where each column represents the malignant reference for a corresponding sample; the psi_mal will be a NA matrix if no malignant cells present in the problem
 * psi_env: reference matrix for the non-malignant cells
-* scaler a gene $\times$ sample matrix to reconstruct any cell.type specific expression of interest
+* scaler: a gene $\times$ sample matrix to reconstruct any cell.type specific expression of interest
 * map: a list with mapping information from cell.states to cell.types
 * updated.cell.types a vector indicating cell.types with updated reference; equals to NULL if no environmental (non-malignant) cell.types being updated
+* key: the `key` argument passed to `InstaPrism_update()` function
+* keep.phi: the `keep.phi` argument passed to `InstaPrism_update()` function
 
-Among these objects, the 'theta' matrix exclusively holds the deconvolution results of interest, while the remaining objects are solely required for Z reconstruction. \
+Among these objects, the 'theta' matrix exclusively holds the deconvolution results of interest, while the remaining objects are only required for Z reconstruction. \
 
 Since either `phi.ct` or `phi.cs` can be used for the cell.types that are not being updated, the `theta` matrix can be a mixture of abundance estimates for both cell.types and cell.states. To merge any cell.state information to cell.type levels, users can utilize the convenient `merge_updated_theta()` function for this purpose.
+
+```{r,eval=FALSE}
+updated_ct = merge_updated_theta(InstaPrism.res.updated)
+```
 
 
 ## Example 2: deconvolution on the tutorial data from BayesPrism
@@ -459,13 +464,13 @@ updated_obj = InstaPrism_update(InstaPrism.res.initial,
                                 key = 'tumor')
 
 # 4. merge cell.state level theta to cell.type level 
-updated_ct = merge_updated_theta(updated_obj,key = 'tumor')
+updated_ct = merge_updated_theta(updated_obj)
 
 # note: since no cell.state associated information present in this problem, the following two matrices are the same
 # all.equal(updated_ct,updated_obj@theta) # TRUE
 
 # 5. reconstruct cell.type specific expression with the updated reference (optional)
-Z_tumor_ct_updated = reconstruct_Z_ct_updated(updated_obj,cell.type.of.interest = 'tumor',key = 'tumor',n.core = 16)
+Z_tumor_ct_updated = reconstruct_Z_ct_updated(updated_obj,cell.type.of.interest = 'tumor',n.core = 16)
 ```
 
 ```{r}
@@ -507,7 +512,7 @@ diag(ct.corr.updated)
 InstaPrism significantly reduced the running time from hours to mere minutes on this tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat).
 
 ```{r,fig.align='center',fig.width=4.7,fig.height=2.45}
-InstaPrism_running_time = as.numeric(elp$toc - elp$tic) / 60 # tic and toc are the elapsed process times in seconds, divid it by 60 to convert to minutes
+InstaPrism_running_time = as.numeric(elp$toc - elp$tic) / 60 # tic and toc are the elapsed process times in seconds, divide it by 60 to convert to minutes
 rt=data.frame(method=c('InstaPrism \n (n.core=16)','BayesPrism \n (n.core=16)'),
               time=c(InstaPrism_running_time,bp_running_time))
 rt$time=round(rt$time,2)
@@ -677,7 +682,7 @@ updated_ct = merge_updated_theta(updated_obj)
 
 ##### 5. reconstruct cell.type specific expression with the updated reference (optional)
 ```{r,eval=FALSE}
-Z_tumor_ct_updated = reconstruct_Z_ct_updated(updated_obj,cell.type.of.interest,key = 'tumor')
+Z_ct_updated = reconstruct_Z_ct_updated(updated_obj,cell.type.of.interest)
 ```
 
 ## Additional notes on InstaPrism parameters
@@ -715,7 +720,7 @@ InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr 
 ```
 
 
-* **n.core**: number of cores to use for parallel programming. We recommend setting this parameter to higher value when multiple cores are available
+* **n.core**: number of cores to use for parallel programming. We recommend setting this parameter to higher value when multiple cores are available. InstaPrism functions that support parallel programming include: `InstaPrism()`, `InstaPrism_update()`, `reconstruct_Z_ct_initial()`, `reconstruct_Z_ct_updated()` and `InstaPrism_legacy()`.
 
 \
 \

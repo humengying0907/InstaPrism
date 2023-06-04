@@ -368,7 +368,7 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
     }
 
     for(j in 1:length(bulk_schedular)){
-      pheatmap::pheatmap(dif_ct[,bulk_schedular[[j]]],cluster_rows = F,cluster_cols = F,color = hcl.colors(50, "OrRd") %>% rev () ,
+      pheatmap::pheatmap(dif_ct[,bulk_schedular[[j]],drop=F],cluster_rows = F,cluster_cols = F,color = hcl.colors(50, "OrRd") %>% rev () ,
                          breaks = seq(0,0.02, length.out=50),show_colnames=T,main = 'Convergence status for cell types')
 
     }
@@ -538,6 +538,7 @@ InstaPrism_update = function(InstaPrism_obj,
   N = ncol(bulk_Expr)
   cell.types.env = names(map)
 
+
   if(is.na(key)){
 
     wrap = function(n){
@@ -573,7 +574,7 @@ InstaPrism_update = function(InstaPrism_obj,
       colnames(Z_gt_env_normalized) = cell.types.to.update
 
       cms = intersect(rownames(bulk_Expr),rownames(Z_gt_env_normalized))
-      bulk_Expr = bulk_Expr[cms,]
+      bulk_Expr = bulk_Expr[cms,,drop=F]
 
       if(keep.phi =='phi.ct'){
 
@@ -585,7 +586,7 @@ InstaPrism_update = function(InstaPrism_obj,
         # using scRNA based Phi ct for the remaining non-malignant cells
         cell.types.env.remaining = cell.types.env[!cell.types.env %in% cell.types.to.update]
         psi_env = cbind(Z_gt_env_normalized[cms,,drop=F],
-                        InstaPrism_obj@initial.reference@phi.ct[cms,cell.types.env.remaining])
+                        InstaPrism_obj@initial.reference@phi.ct[cms,cell.types.env.remaining,drop=F])
 
         cat('deconvolution with the updated reference \n')
         pboptions(type = "txt", style = 3, char = "=")
@@ -601,14 +602,14 @@ InstaPrism_update = function(InstaPrism_obj,
         cell.states.env.remaining = do.call(c,map.env.remaining) %>% unname()
 
         psi_env = cbind(Z_gt_env_normalized[cms,,drop=F],
-                        InstaPrism_obj@initial.reference@phi.cs[cms,cell.states.env.remaining])
+                        InstaPrism_obj@initial.reference@phi.cs[cms,cell.states.env.remaining,drop=F])
 
         cat('deconvolution with the updated reference \n')
         pboptions(type = "txt", style = 3, char = "=")
         theta=do.call(cbind,pblapply(sapply(1:N, list),wrap,cl = n.core))
 
         colnames(theta)=colnames(bulk_Expr)
-        rownames(theta)=c(key,colnames(psi_env))
+        rownames(theta)=colnames(psi_env)
       }
 
       cat('scaler calculation \n')
@@ -624,6 +625,7 @@ InstaPrism_update = function(InstaPrism_obj,
                scaler = scaler,
                map = map,
                updated.cell.types = cell.types.to.update,
+               key = key,
                keep.phi = keep.phi))
   }else{
 
@@ -661,15 +663,15 @@ InstaPrism_update = function(InstaPrism_obj,
     Z_mal_normalized = sweep(Z_mal,2,colSums(Z_mal),'/')
 
     cms = intersect(rownames(bulk_Expr),rownames(Z_mal_normalized))
-    bulk_Expr = bulk_Expr[cms,]
-    psi_mal = Z_mal_normalized[cms,]
+    bulk_Expr = bulk_Expr[cms,,drop = F]
+    psi_mal = Z_mal_normalized[cms,,drop = F]
 
     # non-malignant reference
     if(is.null(cell.types.to.update)){
 
       if(keep.phi =='phi.ct'){
         # using scRNA based Phi ct for all non-malignant cells
-        psi_env = InstaPrism_obj@initial.reference@phi.ct[cms,cell.types.env]
+        psi_env = InstaPrism_obj@initial.reference@phi.ct[cms,cell.types.env,drop=F]
 
         cat('deconvolution with the updated reference \n')
         pboptions(type = "txt", style = 3, char = "=")
@@ -683,7 +685,7 @@ InstaPrism_update = function(InstaPrism_obj,
         map.env = map[cell.types.env]
         cell.states.env = do.call(c,map.env) %>% unname()
 
-        psi_env = InstaPrism_obj@initial.reference@phi.cs[cms,cell.states.env]
+        psi_env = InstaPrism_obj@initial.reference@phi.cs[cms,cell.states.env,drop=F]
 
         cat('deconvolution with the updated reference \n')
         pboptions(type = "txt", style = 3, char = "=")
@@ -703,7 +705,7 @@ InstaPrism_update = function(InstaPrism_obj,
         # using scRNA based Phi ct for the remaining non-malignant cells
         cell.types.env.remaining = cell.types.env[!cell.types.env %in% cell.types.to.update]
         psi_env = cbind(Z_gt_env_normalized[cms,,drop=F],
-                        InstaPrism_obj@initial.reference@phi.ct[cms,cell.types.env.remaining])
+                        InstaPrism_obj@initial.reference@phi.ct[cms,cell.types.env.remaining,drop=F])
 
         cat('deconvolution with the updated reference \n')
         pboptions(type = "txt", style = 3, char = "=")
@@ -719,7 +721,7 @@ InstaPrism_update = function(InstaPrism_obj,
         cell.states.env.remaining = do.call(c,map.env.remaining) %>% unname()
 
         psi_env = cbind(Z_gt_env_normalized[cms,,drop=F],
-                        InstaPrism_obj@initial.reference@phi.cs[cms,cell.states.env.remaining])
+                        InstaPrism_obj@initial.reference@phi.cs[cms,cell.states.env.remaining,drop=F])
 
         cat('deconvolution with the updated reference \n')
         pboptions(type = "txt", style = 3, char = "=")
@@ -743,6 +745,7 @@ InstaPrism_update = function(InstaPrism_obj,
                scaler = scaler,
                map = map,
                updated.cell.types = cell.types.to.update,
+               key = key,
                keep.phi = keep.phi))
   }
 }
@@ -764,16 +767,15 @@ update_map = function(map, updated.cell.types){
 #' @description  InstaPrism_updated_obj contains cell.state level fraction estimation when keep.phi = 'phi.cs',
 #'     this function merges cell.state level theta to cell.type level
 #' @param InstaPrism_updated_obj an InstaPrism_updated_obj from InstaPrism_update() function
-#' @param key a character denoting malignant cell type. Set to NA if there is no malignant cells in the problem
 #'
 #' @return fraction estimation at cell.type level
 #' @export
 #'
-merge_updated_theta = function(InstaPrism_updated_obj,key = NA){
+merge_updated_theta = function(InstaPrism_updated_obj){
 
   theta = InstaPrism_updated_obj@theta
   updated.cell.types = InstaPrism_updated_obj@updated.cell.types
-
+  key = InstaPrism_updated_obj@key
   map = InstaPrism_updated_obj@map
 
   if(is.na(key)){
@@ -789,7 +791,6 @@ merge_updated_theta = function(InstaPrism_updated_obj,key = NA){
 #'
 #' @param InstaPrism_updated_obj an InstaPrism_update object from InstaPrism_update() function
 #' @param cell.type.of.interest cell.type to reconstruct
-#' @param key name of the malignant cell type. Set to NA if no malignant cells present in the problem
 #' @param n.core number of cores to use for parallel programming. Default = 1
 #' @param pseudo.min pseudo.min value to replace zero for normalization. Default = 1E-8
 #'
@@ -798,7 +799,6 @@ merge_updated_theta = function(InstaPrism_updated_obj,key = NA){
 #'
 reconstruct_Z_ct_updated = function(InstaPrism_updated_obj,
                                     cell.type.of.interest,
-                                    key = NA,
                                     n.core = 1,
                                     pseudo.min=1E-8){
   map = InstaPrism_updated_obj@map
@@ -806,58 +806,103 @@ reconstruct_Z_ct_updated = function(InstaPrism_updated_obj,
   theta = InstaPrism_updated_obj@theta
   psi_mal = InstaPrism_updated_obj@psi_mal
   psi_env = InstaPrism_updated_obj@psi_env
+  key = InstaPrism_updated_obj@key
+  keep.phi = InstaPrism_updated_obj@keep.phi
 
   N = ncol(scaler)
 
-  if(is.na(key)){
-    stopifnot(all.equal(matrix(NA),psi_mal))
-    map.updated = update_map(map, InstaPrism_updated_obj@updated.cell.types)
-    cs = map.updated[[cell.type.of.interest]]
+  if(keep.phi == 'phi.cs'){
 
-    Z_ct_from_updated_scaler<-function(index){
-      pp = theta[cs,index,drop=F]
-      phi = psi_env
+    if(is.na(key)){
+      stopifnot(all.equal(matrix(NA),psi_mal))
+      map.updated = update_map(map, InstaPrism_updated_obj@updated.cell.types)
+      cs = map.updated[[cell.type.of.interest]]
 
-      norm_factor = rowSums(phi)
-      norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
+      Z_ct_from_updated_scaler<-function(index){
+        pp = theta[cs,index,drop=F]
+        phi = psi_env
 
-      phi_rownormalized = sweep(phi,1,norm_factor,'/')
+        norm_factor = rowSums(phi)
+        norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
 
-      intermediate = sweep(phi_rownormalized[,cs,drop=F],2,pp,'*')
-      z = sweep(intermediate,1,scaler[,index],'*')
-      z = rowSums(z)
-      return(z)
+        phi_rownormalized = sweep(phi,1,norm_factor,'/')
+
+        intermediate = sweep(phi_rownormalized[,cs,drop=F],2,pp,'*')
+        z = sweep(intermediate,1,scaler[,index],'*')
+        z = rowSums(z)
+        return(z)
+      }
+      pboptions(type = "txt", style = 3, char = "=")
+      reconstructed_Z = do.call(cbind,pblapply(1:N, Z_ct_from_updated_scaler, cl = n.core))
+      colnames(reconstructed_Z) = colnames(scaler)
+      return(reconstructed_Z)
+
+    }else{
+
+      map.updated = update_map(map, c(key,InstaPrism_updated_obj@updated.cell.types))
+      cs = map.updated[[cell.type.of.interest]]
+
+      Z_ct_from_updated_scaler<-function(index){
+        pp = theta[cs,index,drop=F]
+        phi = cbind(psi_mal[,index,drop=F],psi_env)
+        colnames(phi)[1] = key
+
+        norm_factor = rowSums(phi)
+        norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
+
+        phi_rownormalized = sweep(phi,1,norm_factor,'/')
+
+        intermediate = sweep(phi_rownormalized[,cs,drop=F],2,pp,'*')
+        z = sweep(intermediate,1,scaler[,index],'*')
+        z = rowSums(z)
+        return(z)
+      }
+      pboptions(type = "txt", style = 3, char = "=")
+      reconstructed_Z = do.call(cbind,pblapply(1:N, Z_ct_from_updated_scaler, cl = n.core))
+      colnames(reconstructed_Z) = colnames(scaler)
+      return(reconstructed_Z)
     }
-    pboptions(type = "txt", style = 3, char = "=")
-    reconstructed_Z = do.call(cbind,pblapply(1:N, Z_ct_from_updated_scaler, cl = n.core))
-    colnames(reconstructed_Z) = colnames(scaler)
-    return(reconstructed_Z)
 
-  }else{
+  }else if(keep.phi == 'phi.ct'){
+    if(is.na(key)){
 
+      norm_factor = rowSums(psi_env)
+      norm_factor = ifelse(norm_factor==0,pseudo.min,norm_factor)
 
-    map.updated = update_map(map, c(key,InstaPrism_updated_obj@updated.cell.types))
-    cs = map.updated[[cell.type.of.interest]]
+      phi_rownormalized = sweep(psi_env,1,norm_factor,'/')
 
-    Z_ct_from_updated_scaler<-function(index){
-      pp = theta[cs,index,drop=F]
-      phi = cbind(psi_mal[,index,drop=F],psi_env)
-      colnames(phi)[1] = key
+      Z_ct_from_updated_scaler <- function(index){
+        pp = theta[cell.type.of.interest,index] # a numeric value
+        intermediate = phi_rownormalized[,cell.type.of.interest,drop=F] * pp # gene * 1
+        z = sweep(intermediate,1,scaler[,index],'*') # gene * 1
+        return(z)
+      }
 
-      norm_factor = rowSums(phi)
-      norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
+      reconstructed_Z = do.call(cbind,lapply(seq(1,N),Z_ct_from_updated_scaler))
+      colnames(reconstructed_Z) = colnames(scaler)
+      return(reconstructed_Z)
 
-      phi_rownormalized = sweep(phi,1,norm_factor,'/')
+    }else{
 
-      intermediate = sweep(phi_rownormalized[,cs,drop=F],2,pp,'*')
-      z = sweep(intermediate,1,scaler[,index],'*')
-      z = rowSums(z)
-      return(z)
+      Z_ct_from_updated_scaler <- function(index){
+        pp = theta[cell.type.of.interest,index]  # a numeric value
+        phi = cbind(psi_mal[,index,drop=F],psi_env)
+        colnames(phi)[1] = key
+
+        norm_factor = rowSums(phi)
+        norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
+
+        phi_rownormalized = sweep(phi,1,norm_factor,'/')
+        intermediate = phi_rownormalized[,cell.type.of.interest,drop=F] * pp # gene * 1
+        z = sweep(intermediate,1,scaler[,index],'*') # gene * 1
+
+        return(z)
+      }
+
+      reconstructed_Z = do.call(cbind,lapply(seq(1,N),Z_ct_from_updated_scaler))
+      colnames(reconstructed_Z) = colnames(scaler)
+      return(reconstructed_Z)
     }
-    pboptions(type = "txt", style = 3, char = "=")
-    reconstructed_Z = do.call(cbind,pblapply(1:N, Z_ct_from_updated_scaler, cl = n.core))
-    colnames(reconstructed_Z) = colnames(scaler)
-    return(reconstructed_Z)
   }
 }
 

@@ -93,10 +93,15 @@ setClass('InstaPrism_update',slots = c(theta = 'matrix',
                                        scaler = 'matrix',
                                        map = 'list',
                                        updated.cell.types = 'updated.cell.types',
+                                       key = 'key',
                                        keep.phi = 'character'))
 
 setClassUnion("updated.cell.types",
               c("character","NULL"))
+
+setClassUnion("key",
+              c("character","logical"))
+
 
 ############### S4 object related with InstaPrism_legacy function  #################
 #' InstaPrism_legacy output class

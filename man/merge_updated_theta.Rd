@@ -4,12 +4,10 @@
 \alias{merge_updated_theta}
 \title{merge cell.state level information to cell.type level}
 \usage{
-merge_updated_theta(InstaPrism_updated_obj, key = NA)
+merge_updated_theta(InstaPrism_updated_obj)
 }
 \arguments{
 \item{InstaPrism_updated_obj}{an InstaPrism_updated_obj from InstaPrism_update() function}
-
-\item{key}{a character denoting malignant cell type. Set to NA if there is no malignant cells in the problem}
 }
 \value{
 fraction estimation at cell.type level

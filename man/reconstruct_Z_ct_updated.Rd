@@ -7,7 +7,6 @@
 reconstruct_Z_ct_updated(
   InstaPrism_updated_obj,
   cell.type.of.interest,
-  key = NA,
   n.core = 1,
   pseudo.min = 1e-08
 )
@@ -16,8 +15,6 @@ reconstruct_Z_ct_updated(
 \item{InstaPrism_updated_obj}{an InstaPrism_update object from InstaPrism_update() function}
 
 \item{cell.type.of.interest}{cell.type to reconstruct}
-
-\item{key}{name of the malignant cell type. Set to NA if no malignant cells present in the problem}
 
 \item{n.core}{number of cores to use for parallel programming. Default = 1}
 
