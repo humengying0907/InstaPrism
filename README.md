@@ -5,11 +5,19 @@
 library("devtools");
 install_github("humengying0907/InstaPrism")
 ```````
+## Unique Features
+Explore the following distinctive features of our package:
+
+* Computational and Memory Efficiency: Optimized algorithms for efficient utilization of computational resources and memory
+* Progress Bar Monitoring: Real-time progress monitoring of the deconvolution process
+* Convergence Check: Summary table and plot to monitor algorithm convergence status
+* Selective Reference Update: Ability to update the reference specifically for desired cell types of interest
+* Cell-Type Specific Expression Reconstruction: Ability to reconstruct cell-type specific expression for bulk samples
 ## Running time comparsion with BayesPrism
 Below is a running time comparsion when running deconvolution on the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) 
 provided in BayesPrism. 
 
-<img src="https://github.com/humengying0907/InstaPrism/assets/54827603/992b2379-4b79-49e2-a2a8-af920025da9e" width=45% height=45%>
+<img src="https://github.com/humengying0907/InstaPrism/assets/54827603/e041c0bd-906d-4bbd-a07f-4386548e843e" width=45% height=45%>
 
 
 
