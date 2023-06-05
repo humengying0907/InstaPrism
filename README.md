@@ -17,8 +17,7 @@ Explore the following distinctive features of our package:
 Below is a running time comparsion when running deconvolution on the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) 
 provided in BayesPrism. 
 
-<img src="https://github.com/humengying0907/InstaPrism/assets/54827603/e041c0bd-906d-4bbd-a07f-4386548e843e" width=45% height=45%>
-
+<img src="https://github.com/humengying0907/InstaPrism/assets/54827603/7ecf1817-e04b-4739-994a-fabf3a1064d1" width=45% height=45%>
 
 
 ## Tutorial
