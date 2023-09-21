@@ -14,5 +14,5 @@ fraction estimation at cell.type level
 }
 \description{
 InstaPrism_updated_obj contains cell.state level fraction estimation when keep.phi = 'phi.cs',
-    this function merges cell.state level theta to cell.type level
+    this function merges cell.state level theta to cell.type level.
 }

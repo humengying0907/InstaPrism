@@ -2,16 +2,16 @@
 % Please edit documentation in R/InstaPrism.R
 \name{InstaPrism_update}
 \alias{InstaPrism_update}
-\title{Run InstaPrism update on InstaPrism_elite object}
+\title{Run InstaPrism update on InstaPrism object}
 \usage{
 InstaPrism_update(
   InstaPrism_obj,
   bulk_Expr,
   n.iter = 100,
   n.core = 1,
-  cell.types.to.update = NULL,
+  cell.types.to.update = "all",
   key = NA,
-  keep.phi = "phi.ct",
+  keep.phi = "phi.cs",
   pseudo.min = 1e-08
 )
 }
@@ -24,12 +24,13 @@ InstaPrism_update(
 
 \item{n.core}{number of cores to use for parallel programming. Default = 1}
 
-\item{cell.types.to.update}{non-malignant cell.types to update}
+\item{cell.types.to.update}{non-malignant cell.types to update. Default = 'all'. Set to NULL if only need to update the 'key' cell.type.}
 
 \item{key}{name of the malignant cell type. Upon setting the key parameter, the updated malignant reference will be unique for each individual.
 Set to NA if there is no malignant cells in the problem, and the updated reference will be the same for all the individuals}
 
-\item{keep.phi}{either 'phi.ct' or 'phi.cs', denoting whether using phi.ct or phi.cs for cell.types that are not updated}
+\item{keep.phi}{either 'phi.ct' or 'phi.cs', denoting whether using phi.ct or phi.cs for cell.types that are not updated.
+Only applicable when there are cell-types don't need to be updated}
 
 \item{pseudo.min}{pseudo.min value to replace zero for normalization. Default = 1E-8}
 }
@@ -37,5 +38,5 @@ Set to NA if there is no malignant cells in the problem, and the updated referen
 an InstaPrism_update object
 }
 \description{
-fast and memory-saving ways to update malignant reference and cell.types of interest
+fast and memory-saving ways to update reference and get the updated deconvolution results
 }

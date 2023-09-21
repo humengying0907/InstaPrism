@@ -508,17 +508,18 @@ Z_env_normalize = function(cell.type.of.interest,InstaPrism_obj,n.core,pseudo.mi
 }
 
 
-#' Run InstaPrism update on InstaPrism_elite object
-#' @description fast and memory-saving ways to update malignant reference and cell.types of interest
+#' Run InstaPrism update on InstaPrism object
+#' @description fast and memory-saving ways to update reference and get the updated deconvolution results
 #'
 #' @param InstaPrism_obj an InstaPrism object from InstaPrism() function
 #' @param bulk_Expr bulk expression to deconvolute (without log transformation), with genes in rows and samples in columns
 #' @param n.iter number of iterations in InstaPrism algorithm. Default = 100
 #' @param n.core number of cores to use for parallel programming. Default = 1
-#' @param cell.types.to.update non-malignant cell.types to update
+#' @param cell.types.to.update non-malignant cell.types to update. Default = 'all'. Set to NULL if only need to update the 'key' cell.type.
 #' @param key name of the malignant cell type. Upon setting the key parameter, the updated malignant reference will be unique for each individual.
 #'		  Set to NA if there is no malignant cells in the problem, and the updated reference will be the same for all the individuals
-#' @param keep.phi either 'phi.ct' or 'phi.cs', denoting whether using phi.ct or phi.cs for cell.types that are not updated
+#' @param keep.phi either 'phi.ct' or 'phi.cs', denoting whether using phi.ct or phi.cs for cell.types that are not updated.
+#'     Only applicable when there are cell-types don't need to be updated
 #' @param pseudo.min pseudo.min value to replace zero for normalization. Default = 1E-8
 #'
 #' @return an InstaPrism_update object
@@ -528,9 +529,9 @@ InstaPrism_update = function(InstaPrism_obj,
                              bulk_Expr,
                              n.iter = 100,
                              n.core = 1,
-                             cell.types.to.update = NULL,
+                             cell.types.to.update = 'all',
                              key = NA,
-                             keep.phi = 'phi.ct',
+                             keep.phi = 'phi.cs',
                              pseudo.min = 1E-08){
   stopifnot(all(rownames(InstaPrism_obj@initial.reference@phi.cs) %in% rownames(bulk_Expr)))
 
@@ -554,11 +555,11 @@ InstaPrism_update = function(InstaPrism_obj,
 
       phi = psi_env
       norm_factor = rowSums(phi)
-      norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
+      norm_factor = ifelse(norm_factor==0,pseudo.min,norm_factor)
       phi_rownormalized = sweep(phi,1,norm_factor,'/')
 
       intermediate = phi_rownormalized %*% pp
-      intermediate = ifelse(intermediate==0,1e-08,intermediate)
+      intermediate = ifelse(intermediate==0,pseudo.min,intermediate)
 
       scaler = X/intermediate
       return(scaler)
@@ -566,8 +567,17 @@ InstaPrism_update = function(InstaPrism_obj,
 
     if(is.null(cell.types.to.update)){
       stop('please specify the cell.types to update when key = NA')
-    }else{
-      cat('update reference for cell.types of interest \n')
+    }
+    else{
+      if(length(cell.types.to.update) == 1 & cell.types.to.update == 'all'){
+        cell.types.to.update = cell.types.env
+        cat('update reference for all cell types \n')
+      }else{
+
+        stopifnot(all(cell.types.to.update %in% cell.types.env))
+
+        cat('update reference for-user defined cell types \n')
+      }
 
       # update cell.types.to.update with Z_env
       Z_gt_env_normalized = do.call(cbind,lapply(cell.types.to.update, Z_env_normalize,InstaPrism_obj,n.core,pseudo.min))
@@ -631,6 +641,8 @@ InstaPrism_update = function(InstaPrism_obj,
 
     cell.types.env = cell.types.env[cell.types.env!=key]
 
+
+
     wrap=function(n){
       ref = cbind(psi_mal[,n],psi_env)
       colnames(ref)[1]=key
@@ -646,11 +658,11 @@ InstaPrism_update = function(InstaPrism_obj,
 
       phi = cbind(psi_mal[,index,drop=F],psi_env)
       norm_factor = rowSums(phi)
-      norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
+      norm_factor = ifelse(norm_factor==0,pseudo.min,norm_factor)
       phi_rownormalized = sweep(phi,1,norm_factor,'/')
 
       intermediate = phi_rownormalized %*% pp
-      intermediate = ifelse(intermediate==0,1e-08,intermediate)
+      intermediate = ifelse(intermediate==0,pseudo.min,intermediate)
 
       scaler = X/intermediate
       return(scaler)
@@ -696,7 +708,18 @@ InstaPrism_update = function(InstaPrism_obj,
       }
 
     }else{
-      cat('update reference for cell.types of interest \n')
+
+      if(length(cell.types.to.update) == 1 & cell.types.to.update == 'all'){
+        cell.types.to.update = cell.types.env
+        cat('update reference for all cell types \n')
+      }else{
+
+        stopifnot(all(cell.types.to.update %in% cell.types.env))
+
+        cat('update reference for-user defined cell types \n')
+      }
+
+
       # update cell.types.to.update with Z_env
       Z_gt_env_normalized = do.call(cbind,lapply(cell.types.to.update,Z_env_normalize,InstaPrism_obj,n.core,pseudo.min))
       colnames(Z_gt_env_normalized) = cell.types.to.update
@@ -765,7 +788,7 @@ update_map = function(map, updated.cell.types){
 
 #' merge cell.state level information to cell.type level
 #' @description  InstaPrism_updated_obj contains cell.state level fraction estimation when keep.phi = 'phi.cs',
-#'     this function merges cell.state level theta to cell.type level
+#'     this function merges cell.state level theta to cell.type level.
 #' @param InstaPrism_updated_obj an InstaPrism_updated_obj from InstaPrism_update() function
 #'
 #' @return fraction estimation at cell.type level
@@ -777,6 +800,7 @@ merge_updated_theta = function(InstaPrism_updated_obj){
   updated.cell.types = InstaPrism_updated_obj@updated.cell.types
   key = InstaPrism_updated_obj@key
   map = InstaPrism_updated_obj@map
+
 
   if(is.na(key)){
     map.updated = update_map(map,updated.cell.types)
@@ -823,7 +847,7 @@ reconstruct_Z_ct_updated = function(InstaPrism_updated_obj,
         phi = psi_env
 
         norm_factor = rowSums(phi)
-        norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
+        norm_factor = ifelse(norm_factor==0,pseudo.min,norm_factor)
 
         phi_rownormalized = sweep(phi,1,norm_factor,'/')
 
@@ -848,7 +872,7 @@ reconstruct_Z_ct_updated = function(InstaPrism_updated_obj,
         colnames(phi)[1] = key
 
         norm_factor = rowSums(phi)
-        norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
+        norm_factor = ifelse(norm_factor==0,pseudo.min,norm_factor)
 
         phi_rownormalized = sweep(phi,1,norm_factor,'/')
 
@@ -890,7 +914,7 @@ reconstruct_Z_ct_updated = function(InstaPrism_updated_obj,
         colnames(phi)[1] = key
 
         norm_factor = rowSums(phi)
-        norm_factor = ifelse(norm_factor==0,1e-08,norm_factor)
+        norm_factor = ifelse(norm_factor==0,pseudo.min,norm_factor)
 
         phi_rownormalized = sweep(phi,1,norm_factor,'/')
         intermediate = phi_rownormalized[,cell.type.of.interest,drop=F] * pp # gene * 1

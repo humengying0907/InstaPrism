@@ -15,7 +15,7 @@ Suggests:
     ggpmisc,
     snowfall
 VignetteBuilder: knitr
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Depends: 
     R (>= 3.5.0),
     dplyr,

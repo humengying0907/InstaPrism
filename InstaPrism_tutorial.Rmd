@@ -7,7 +7,9 @@ output:
     theme: lumen
     highlight: default
     toc: true
-    toc_depth: 4
+    toc_depth: 4       
+    toc_float: true
+
 toc-title: "Table of Contents"
 ---
 
@@ -278,20 +280,20 @@ We now consider a more advanced deconvolution problem where we want to leverage 
 
 In **InstaPrism**, we present a more versatile `InstaPrism_update()` function for a similar purpose, with the following arguments included:
 
-* **cell.types.to.update**: a user-defined vector indicating which (non-malignant) cell.types to update. In BayesPrism, all the cell.types are automatically updated with the pooled bulk information (the Z array), irrespective of its rationality. We now provide this `cell.types.to.update` argument such that users can decide which cell.types to update the reference for. 
+* **cell.types.to.update**: a user-defined vector indicating which (non-malignant) cell.types to update. The Reference-update step typically offers advantages in addressing cross-platform batch effects between the reference and the bulk expression data being deconvoluted. By default, this parameter is set to 'all,' indicating the updating of all cell type references, following the same approach as utilized in BayesPrism. Alternatively, users can specify particular cell types to update using this parameter, or they can set it to NULL if they intend to update only the 'key' cell.type.
 * **key** name of the malignant cell type. Upon setting the key parameter, the updated malignant reference will be unique for each individual. Set to NA if there is no malignant cells in the problem, and the updated reference will be the same for all the individuals
 * **keep.phi**: either 'phi.ct' or 'phi.cs', denoting whether using phi.ct or phi.cs for cell.types that are not updated. \
 
 
 **1. Reference update using InstaPrism_update()**
 
-To update the reference profile for the above simulated dataset, we will set `key = NA` since no malignant cells are present in this problem. Note that when we set `cell.types.to.update` equals to all the unique cell.types present in the reference profile, the deconvolution results obtained from `InstaPrism_update()` will be nearly identical to the BayesPrism updated results. This is because `InstaPrism_update()` pooled the same bulk expression information for reference update as BayesPrism.
+To update the reference profile for the above simulated dataset, we will set `key = NA` since no malignant cells are present in this problem. By setting `cell.types.to.update = 'all'`, we specify that all the cell.type reference will be updated. 
 
 ```{r,results='hide'}
 tic()
 InstaPrism.res.updated = InstaPrism_update(InstaPrism.res,
                                            bulk_Expr,
-                                           cell.types.to.update = unique(cell_type_labels),
+                                           cell.types.to.update = 'all',
                                            key = NA)
 ```
 ```{r}
@@ -376,7 +378,7 @@ In the above examples we only considered a simple scenario where we update all t
 
 Among these objects, the 'theta' matrix exclusively holds the deconvolution results of interest, while the remaining objects are only required for Z reconstruction. \
 
-Since either `phi.ct` or `phi.cs` can be used for the cell.types that are not being updated, the `theta` matrix can be a mixture of abundance estimates for both cell.types and cell.states. To merge any cell.state information to cell.type levels, users can utilize the convenient `merge_updated_theta()` function for this purpose.
+Since either `phi.ct` or `phi.cs` can be used for the cell.types that are not being updated, the `theta` matrix can be a mixture of abundance estimates for both cell.types and cell.states. To merge any cell.state information to cell.type levels, users can utilize the convenient `merge_updated_theta()` function for this purpose. Note that is function is only applicable when `keep.phi = 'phi.cs'`
 
 ```{r,eval=FALSE}
 updated_ct = merge_updated_theta(InstaPrism.res.updated)
@@ -459,17 +461,10 @@ updated_obj = InstaPrism_update(InstaPrism.res.initial,
                                 bulk_Expr = t(bp.res@prism@mixture), 
                                 n.iter = 100, 
                                 n.core = 16, 
-                                # choose all non-malignant cell.types to update for full comparison with BayesPrism
-                                cell.types.to.update = rownames(InstaPrism.res.initial@Post.ini.ct@theta)[2:6], 
+                                cell.types.to.update = 'all', 
                                 key = 'tumor')
 
-# 4. merge cell.state level theta to cell.type level 
-updated_ct = merge_updated_theta(updated_obj)
-
-# note: since no cell.state associated information present in this problem, the following two matrices are the same
-# all.equal(updated_ct,updated_obj@theta) # TRUE
-
-# 5. reconstruct cell.type specific expression with the updated reference (optional)
+# 4. reconstruct cell.type specific expression with the updated reference (optional)
 Z_tumor_ct_updated = reconstruct_Z_ct_updated(updated_obj,cell.type.of.interest = 'tumor',n.core = 16)
 ```
 
@@ -503,12 +498,11 @@ all.equal(Z_tumor_ct_initial,Z_tumor_ct_initial_bp)
 cell.type fraction estimates from two methods are nearly identical
 
 ```{r}
-ct.corr.updated=cor(t(updated_ct),bp.res@posterior.theta_f@theta)
+ct.corr.updated=cor(t(updated_obj@theta),bp.res@posterior.theta_f@theta)
 diag(ct.corr.updated)
 ```
 
 **4. running time comparison**
-
 InstaPrism significantly reduced the running time from hours to mere minutes on this tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat).
 
 ```{r,fig.align='center',fig.width=4.7,fig.height=2.45}
@@ -523,6 +517,27 @@ ggplot(rt,aes(method,time))+
   geom_text(aes(label = time), vjust = -0.2)+
   ylim(0,max(rt$time)*1.08)
 ```
+
+**5. Memory comparison **
+With 2-d compression of the Z matrix, InstaPrism significantly reduce the memory required to store the deconvolution object
+
+```{r,fig.align='center',fig.width=4,fig.height=2.45}
+InstaPrism_memory = object.size(c(InstaPrism.res.initial,updated_obj))
+bp_memory = object.size(bp.res)
+
+mp=data.frame(method=c('InstaPrism','BayesPrism'),
+              memory=c(object.size(c(InstaPrism.res.initial,updated_obj)),object.size(bp.res)),
+              m = c('85MB','1.8GB'))
+
+ggplot(mp,aes(method,memory))+
+  geom_bar(stat="identity",fill='grey',width = 0.5)+
+  theme_bw()+
+  ylab('memory (bytes)')+
+  geom_text(aes(label = m), vjust = -0.4)+
+  ylim(0,2e+09)
+
+```
+
 
 
 ## Example 3: deconvolution on heterogeneouly simulated bulk data
@@ -666,8 +681,8 @@ Z_ct_initial = reconstruct_Z_ct_initial(InstaPrism.res.initial,cell.type.of.inte
 ##### 3. update reference & get deconovlution results from the updated reference
 ```{r,eval=FALSE}
 updated_obj = InstaPrism_update(InstaPrism.res.initial, 
-                                bulk_Expr ,
-                                cell.types.to.update , 
+                                bulk_Expr,
+                                cell.types.to.update, 
                                 key,
                                 keep.phi)
 ```
@@ -723,6 +738,3 @@ InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr 
 * **n.core**: number of cores to use for parallel programming. We recommend setting this parameter to higher value when multiple cores are available. InstaPrism functions that support parallel programming include: `InstaPrism()`, `InstaPrism_update()`, `reconstruct_Z_ct_initial()`, `reconstruct_Z_ct_updated()` and `InstaPrism_legacy()`.
 
 \
-\
-\
-
