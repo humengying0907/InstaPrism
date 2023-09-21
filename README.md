@@ -20,6 +20,11 @@ provided in BayesPrism.
 
 <img src="https://github.com/humengying0907/InstaPrism/assets/54827603/8e158249-9cc9-4f06-8e89-63867540bfc6" width=45% height=45%>
 
+## Memory Comparison with BayesPrism
+InstaPrism significantly reduced the memory required to store the deconvolution project, when running deconvolution on the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) 
+provided in BayesPrism. 
+
+<img src="https://github.com/humengying0907/InstaPrism/assets/54827603/3d9c8b8b-8aac-4c4b-b793-e64c33cac752" width=45% height=45%>
 
 ## Tutorial
 Check [InstaPrism_tumorial](https://humengying0907.github.io/InstaPrism_tutorial.html) for detailed implementation of InstaPrism and compare its performance with BayesPrism.
