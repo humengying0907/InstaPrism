@@ -275,12 +275,31 @@ corr = cor(Neuron_expr,Neuron_expr_bp)
 ComplexHeatmap::Heatmap(corr,show_row_dend = F,show_column_dend = F,column_title = 'BayesPrism',row_title = 'InstaPrism',name='correlation',cluster_rows = F,cluster_columns = F,show_row_names = F,show_column_names = F)
 ```
 
+InstaPrism also supports full 3d Z tensor reconstruction (sample $\times$ genes $\times$ cell.type)
+```{r,results='hide'}
+Z = get_Z_array(InstaPrism.res,resolution = 'ct',n.core = 16)
+```
+The dimension of Z is equivalent to BayesPrism output
+```{r}
+dim(Z)
+```
+
+```{r}
+dim(bp.res@posterior.initial.cellType@Z)
+```
+
+Two Z tensors are nearly identical
+```{r}
+all.equal(Z,bp.res@posterior.initial.cellType@Z)
+```
+
+
 #### Step 6 (optional). Run deconvolution with InstaPrism and BayesPrism using the updated reference
 We now consider a more advanced deconvolution problem where we want to leverage from the information shared by bulk samples and update the reference matrix accordingly. \
 
 In **InstaPrism**, we present a more versatile `InstaPrism_update()` function for a similar purpose, with the following arguments included:
 
-* **cell.types.to.update**: a user-defined vector indicating which (non-malignant) cell.types to update. The Reference-update step typically offers advantages in addressing cross-platform batch effects between the reference and the bulk expression data being deconvoluted. By default, this parameter is set to 'all,' indicating the updating of all cell type references, following the same approach as utilized in BayesPrism. Alternatively, users can specify particular cell types to update using this parameter, or they can set it to NULL if they intend to update only the 'key' cell.type.
+* **cell.types.to.update**: a user-defined vector indicating which (non-malignant) cell.types to update. By default, this parameter is set to 'all,' indicating the updating of all cell type references, following the same approach as utilized in BayesPrism. 
 * **key** name of the malignant cell type. Upon setting the key parameter, the updated malignant reference will be unique for each individual. Set to NA if there is no malignant cells in the problem, and the updated reference will be the same for all the individuals
 * **keep.phi**: either 'phi.ct' or 'phi.cs', denoting whether using phi.ct or phi.cs for cell.types that are not updated. \
 
@@ -361,6 +380,11 @@ Neuron_expr_updated = reconstruct_Z_ct_updated(InstaPrism_updated_obj = InstaPri
                                                cell.type.of.interest = 'Neurons')
 ```
 
+Alternatively, one can use `get_Z_array()` function to get the 3d Z array directly. The dimension of this Z array is sample $\times$ genes $\times$ cell.type.
+```{r,results='hide'}
+Z = get_Z_array(InstaPrism.res.updated,resolution = 'ct',n.core = 16)
+```
+
 **6. additional notes on InstaPrism_update function**
 
 In the above examples we only considered a simple scenario where we update all the cell.types present. In real practice, we may want to update only specific cell.types, such as those exhibiting high cross-sample heterogeneity, while retaining the scRNA based reference for the remaining cell types. In such cases, users need to specify the `keep.phi` argument, indicating whether to use phi.ct or phi.cs for cell.types that are not updated. \
@@ -368,13 +392,13 @@ In the above examples we only considered a simple scenario where we update all t
 `InstaPrism_update()` returns an S4 object containing the following objects:
 
 * **theta**: cell state/type abundance matrix
-* psi_mal: a gene $\times$ sample reference matrix for malignant cells, where each column represents the malignant reference for a corresponding sample; the psi_mal will be a NA matrix if no malignant cells present in the problem
-* psi_env: reference matrix for the non-malignant cells
-* scaler: a gene $\times$ sample matrix to reconstruct any cell.type specific expression of interest
-* map: a list with mapping information from cell.states to cell.types
-* updated.cell.types a vector indicating cell.types with updated reference; equals to NULL if no environmental (non-malignant) cell.types being updated
-* key: the `key` argument passed to `InstaPrism_update()` function
-* keep.phi: the `keep.phi` argument passed to `InstaPrism_update()` function
+* **psi_mal**: a gene $\times$ sample reference matrix for malignant cells, where each column represents the malignant reference for a corresponding sample; the psi_mal will be a NA matrix if no malignant cells present in the problem
+* **psi_env**: reference matrix for the non-malignant cells
+* **scaler**: a gene $\times$ sample matrix to reconstruct any cell.type specific expression of interest
+* **map**: a list with mapping information from cell.states to cell.types
+* **updated.cell.types** a vector indicating cell.types with updated reference; equals to NULL if no environmental (non-malignant) cell.types being updated
+* **key**: the `key` argument passed to `InstaPrism_update()` function
+* **keep.phi**: the `keep.phi` argument passed to `InstaPrism_update()` function
 
 Among these objects, the 'theta' matrix exclusively holds the deconvolution results of interest, while the remaining objects are only required for Z reconstruction. \
 

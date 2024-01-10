@@ -17,7 +17,7 @@ InstaPrism(
   prismObj = NULL,
   refPhi = NULL,
   refPhi_cs = NULL,
-  n.iter = NULL,
+  n.iter = 400,
   verbose = F,
   convergence.plot = F,
   max_n_per_plot = 50,
@@ -56,7 +56,7 @@ dominated by outliers. This parameter denotes the same thing as in new.prism() f
 
 \item{refPhi_cs}{a refPhi_cs object with single cell reference phi information (cell state only), required when input_type='refPhi_cs'}
 
-\item{n.iter}{number of iterations in InstaPrism algorithm. Default = max(20, number of cell.states * 2)}
+\item{n.iter}{number of iterations in InstaPrism algorithm. Default = 400}
 
 \item{verbose}{a logical variable determining whether to display convergence status of the model. Default = F}
 

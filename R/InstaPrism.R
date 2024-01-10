@@ -20,10 +20,18 @@ build_ref_matrix<-function(Expr,cell_type_labels){
 #' @param sc_Expr single cell expression with genes in rows and cells in columns
 #' @param cell.type.labels a character vector indicating cell types of each cell
 #' @param cell.state.labels a character vector indicating cell state of each cell
+#' @param ref_type a character indicating refPhi type. Available options are 'refPhi' and 'refPhi_cs'
 #' @param pseudo.min pseudo.min value to replace zero for normalization. Default = 1E-8
 #' @export
-refPrepare <-function(sc_Expr,cell.type.labels,cell.state.labels,pseudo.min=1E-8){
+refPrepare <-function(sc_Expr,cell.type.labels,cell.state.labels,ref_type = 'refPhi',pseudo.min=1E-8){
+  if(all(is.na(rownames(sc_Expr)))){
+    stop('sc_Expr must have rownames')
+  }
+
   sc_Expr <- sc_Expr[Matrix::rowSums(sc_Expr)>0,]
+
+  cell.state.labels = as.vector(cell.state.labels)
+  cell.type.labels = as.vector(cell.type.labels)
 
   # collapse reference
   ref.cs=build_ref_matrix(sc_Expr,cell.state.labels)
@@ -38,10 +46,20 @@ refPrepare <-function(sc_Expr,cell.type.labels,cell.state.labels,pseudo.min=1E-8
     i=which(cell.type.labels==ct)
     map[[ct]]=unique(cell.state.labels[i])
   }
-  return(new('refPhi',
-             phi.cs=ref.cs,
-             phi.ct=ref.ct,
-             map=map))
+
+  if(ref_type == 'refPhi'){
+    return(new('refPhi',
+               phi.cs=ref.cs,
+               phi.ct=ref.ct,
+               map=map))
+  }else if(ref_type == 'refPhi_cs'){
+    return(new('refPhi_cs',
+               phi.cs=ref.cs,
+               map=map))
+  }else{
+    stop('invalid ref_type provided')
+  }
+
 }
 
 
@@ -170,7 +188,7 @@ fastPost.ini.cs.elite.cpp<-function(bulk_Expr,ref,n.iter,n.core=1){
 #' @param prismObj a Prism object, required when input_type='prism'
 #' @param refPhi a refPhi object with single cell reference phi information, required when input_type='refPhi'
 #' @param refPhi_cs a refPhi_cs object with single cell reference phi information (cell state only), required when input_type='refPhi_cs'
-#' @param n.iter number of iterations in InstaPrism algorithm. Default = max(20, number of cell.states * 2)
+#' @param n.iter number of iterations in InstaPrism algorithm. Default = 400
 #' @param verbose a logical variable determining whether to display convergence status of the model. Default = F
 #' @param convergence.plot a logical variable determining whether to visualize convergence status for cell types
 #' @param max_n_per_plot max number of samples to visualize in one convergence plot
@@ -188,7 +206,7 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
                       prismObj=NULL,
                       refPhi=NULL,
                       refPhi_cs=NULL,
-                      n.iter=NULL,
+                      n.iter=400,
                       verbose=F,
                       convergence.plot=F,max_n_per_plot=50,
                       n.core=1){
@@ -198,8 +216,8 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
       stop('Need to specify all raw input objects. One or more input objects from the following is missing: sc_Expr, cell.type.labels, cell.state.labels, bulk_Expr')
     }
 
-    if(is.null(n.iter)){
-      n.iter = max(20, 2*length(unique(cell.state.labels)))
+    if(length(commonRows(sc_Expr,bulk_Expr)) < 10){
+      stop('few gene overlap detected between sc_Expr and bulk_Expr, please ensure consistent gene symbol formats')
     }
 
     bp=bpPrepare(input_type='raw',
@@ -226,10 +244,6 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
       stop('Need to specify a prismObj when input_type = "prism"')
     }
 
-    if(is.null(n.iter)){
-      n.iter = max(20, 2*nrow(prismObj@phi_cellState@phi))
-    }
-
     cat('deconvolution with scRNA reference phi \n')
     res.list = fastPost.ini.cs.elite.cpp(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter,n.core)
 
@@ -249,8 +263,8 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
       stop('Need to specify refPhi and bulk_Expr when input_type = "refPhi"')
     }
 
-    if(is.null(n.iter)){
-      n.iter = max(20, 2* ncol(refPhi@phi.cs))
+    if(length(commonRows(refPhi@phi.ct,bulk_Expr)) < 10){
+      stop('few gene overlap detected between reference and bulk_Expr, please ensure consistent gene symbol formats')
     }
 
     bp = bpPrepare(input_type = 'refPhi',
@@ -277,9 +291,10 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
       stop('Need to specify refPhi_cs and bulk_Expr when input_type = "refPhi_cs"')
     }
 
-    if(is.null(n.iter)){
-      n.iter = max(20, 2* ncol(refPhi_cs@phi.cs))
+    if(length(commonRows(refPhi_cs@phi.cs,bulk_Expr)) < 10){
+      stop('few gene overlap detected between reference and bulk_Expr, please ensure consistent gene symbol formats')
     }
+
 
     bp = bpPrepare(input_type = 'refPhi_cs',
                    bulk_Expr = bulk_Expr,
@@ -569,7 +584,7 @@ InstaPrism_update = function(InstaPrism_obj,
       stop('please specify the cell.types to update when key = NA')
     }
     else{
-      if(length(cell.types.to.update) == 1 & cell.types.to.update == 'all'){
+      if(all(length(cell.types.to.update) == 1 & cell.types.to.update == 'all')){
         cell.types.to.update = cell.types.env
         cat('update reference for all cell types \n')
       }else{
@@ -800,6 +815,11 @@ merge_updated_theta = function(InstaPrism_updated_obj){
   updated.cell.types = InstaPrism_updated_obj@updated.cell.types
   key = InstaPrism_updated_obj@key
   map = InstaPrism_updated_obj@map
+  keep.phi = InstaPrism_updated_obj@keep.phi
+
+  if(keep.phi == 'phi.ct'){
+    stop('merge_updated_theta() is not applied when keep.phi = "phi.ct" in InstaPrism_updated_obj')
+  }
 
 
   if(is.na(key)){
@@ -930,5 +950,67 @@ reconstruct_Z_ct_updated = function(InstaPrism_updated_obj,
   }
 }
 
+
+
+#' Get 3d Z tensor
+#' @description obtain sampleID by gene by cell.type/cell.state 3d Z array
+#'
+#' @param InstaPrism_obj An InstaPrism_obj obtained from InstaPrism() function or an InstaPrism_update_obj obtained from InstaPrism_update() function
+#' @param resolution a character indicating whether to get cell.type specific gene expression or cell.state specific gene expression. Available options include 'ct' or 'cs'. Default = 'ct'
+#' @param n.core number of cores to use for parallel programming. Default = 1
+#'
+#' @return a gene by cell.type(state) 3d Z array
+#' @export
+#'
+get_Z_array = function(InstaPrism_obj,resolution = 'ct',n.core = 1){
+  if(!resolution %in% c('ct','cs')){
+    stop('invalid resolution parameter provided')
+  }
+
+  if(class(InstaPrism_obj) == 'InstaPrism'){
+    if(resolution == 'cs'){
+      cs = rownames(InstaPrism_obj@Post.ini.cs@theta)
+      Z <- array(NA, dim = c(ncol(InstaPrism_obj@Post.ini.cs@theta), nrow(InstaPrism_obj@initial.reference@phi.cs), length(cs)))
+
+      dimnames(Z)[[1]] = colnames(InstaPrism_obj@Post.ini.cs@theta)
+      dimnames(Z)[[2]] = rownames(InstaPrism_obj@initial.reference@phi.cs)
+      dimnames(Z)[[3]] = cs
+
+      for(i in 1:length(cs)){
+        Z[,,i] = t(reconstruct_Z_cs_initial(InstaPrism_obj = InstaPrism_obj, cell.state.of.interest  = cs[i]))
+      }
+
+    }else if(resolution == 'ct'){
+      ct = rownames(InstaPrism_obj@Post.ini.ct@theta)
+
+      Z <- array(NA, dim = c(ncol(InstaPrism_obj@Post.ini.cs@theta), nrow(InstaPrism_obj@initial.reference@phi.cs), length(ct)))
+
+      dimnames(Z)[[1]] = colnames(InstaPrism_obj@Post.ini.cs@theta)
+      dimnames(Z)[[2]] = rownames(InstaPrism_obj@initial.reference@phi.cs)
+      dimnames(Z)[[3]] = ct
+
+      for(i in 1:length(ct)){
+        Z[,,i] = t(reconstruct_Z_ct_initial(InstaPrism_obj = InstaPrism_obj,
+                                            cell.type.of.interest = ct[i],n.core = n.core))
+      }
+
+    }
+  }else if(class(InstaPrism_obj) == 'InstaPrism_update'){
+    if(resolution == 'cs'){
+      stop('resolution cs is not supported with InstaPrism_update obj')
+    }else{
+      ct = names(InstaPrism_obj@map)
+      Z <- array(NA, dim = c(ncol(InstaPrism_obj@theta), nrow(InstaPrism_obj@psi_env), length(ct)))
+      dimnames(Z)[[1]] = colnames(InstaPrism_obj@theta)
+      dimnames(Z)[[2]] = rownames(InstaPrism_obj@psi_env)
+      dimnames(Z)[[3]] = ct
+
+      for(i in 1:length(ct)){
+        Z[,,i] = t(reconstruct_Z_ct_updated(InstaPrism_obj,cell.type.of.interest = ct[i],n.core = n.core))
+      }
+    }
+  }
+  return(Z)
+}
 
 

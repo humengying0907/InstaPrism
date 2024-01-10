@@ -1,3 +1,7 @@
+commonRows=function(data1, data2){
+  intersect(rownames(data1), rownames(data2))
+}
+
 # function to normalize expression matrix, s.t. it sum up to one for each row, with the zero entries = pseudo.min ((adapted from BayesPrism))
 norm.to.one <- function(ref,
                         pseudo.min){
