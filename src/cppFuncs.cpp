@@ -60,3 +60,7 @@ Rcpp::List bpFixedPointCPP(const arma::mat& bulk, const arma::mat& ref, int n_it
                             Rcpp::Named("perCell") = thisXtot,
                             Rcpp::Named("pp_pre") = ppguess_pre);
 }
+
+
+
+

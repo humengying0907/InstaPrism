@@ -188,7 +188,7 @@ fastPost.ini.cs.elite.cpp<-function(bulk_Expr,ref,n.iter,n.core=1){
 #' @param prismObj a Prism object, required when input_type='prism'
 #' @param refPhi a refPhi object with single cell reference phi information, required when input_type='refPhi'
 #' @param refPhi_cs a refPhi_cs object with single cell reference phi information (cell state only), required when input_type='refPhi_cs'
-#' @param n.iter number of iterations in InstaPrism algorithm. Default = 400
+#' @param n.iter number of iterations in InstaPrism algorithm. Default = max(100, number of cell.states * 2)
 #' @param verbose a logical variable determining whether to display convergence status of the model. Default = F
 #' @param convergence.plot a logical variable determining whether to visualize convergence status for cell types
 #' @param max_n_per_plot max number of samples to visualize in one convergence plot
@@ -206,7 +206,7 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
                       prismObj=NULL,
                       refPhi=NULL,
                       refPhi_cs=NULL,
-                      n.iter=400,
+                      n.iter=NULL,
                       verbose=F,
                       convergence.plot=F,max_n_per_plot=50,
                       n.core=1){
@@ -218,7 +218,11 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
 
     if(length(commonRows(sc_Expr,bulk_Expr)) < 10){
       stop('few gene overlap detected between sc_Expr and bulk_Expr, please ensure consistent gene symbol formats')
-    }
+      }
+
+    if(is.null(n.iter)){
+      n.iter = max(100, 2*length(unique(cell.state.labels)))
+      }
 
     bp=bpPrepare(input_type='raw',
                  sc_Expr,
@@ -244,6 +248,10 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
       stop('Need to specify a prismObj when input_type = "prism"')
     }
 
+    if(is.null(n.iter)){
+      n.iter = max(100, 2*nrow(prismObj@phi_cellState@phi))
+    }
+
     cat('deconvolution with scRNA reference phi \n')
     res.list = fastPost.ini.cs.elite.cpp(t(prismObj@mixture),t(prismObj@phi_cellState@phi),n.iter,n.core)
 
@@ -266,6 +274,10 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
     if(length(commonRows(refPhi@phi.ct,bulk_Expr)) < 10){
       stop('few gene overlap detected between reference and bulk_Expr, please ensure consistent gene symbol formats')
     }
+
+    if(is.null(n.iter)){
+      n.iter = max(100, 2* ncol(refPhi@phi.cs))
+      }
 
     bp = bpPrepare(input_type = 'refPhi',
                    bulk_Expr = bulk_Expr,
@@ -294,6 +306,10 @@ InstaPrism <-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
     if(length(commonRows(refPhi_cs@phi.cs,bulk_Expr)) < 10){
       stop('few gene overlap detected between reference and bulk_Expr, please ensure consistent gene symbol formats')
     }
+
+    if(is.null(n.iter)){
+      n.iter = max(100, 2* ncol(refPhi_cs@phi.cs))
+      }
 
 
     bp = bpPrepare(input_type = 'refPhi_cs',
@@ -557,6 +573,8 @@ InstaPrism_update = function(InstaPrism_obj,
 
   if(is.na(key)){
 
+    message('the "key" parameter is set to NA, the updated reference will be the same for all the individuals')
+
     wrap = function(n){
       pp = InstaPrism:::bpFixedPointCPP(matrix(bulk_Expr[,n]),psi_env,n_iter = n.iter)$pp
       return(pp)
@@ -591,7 +609,7 @@ InstaPrism_update = function(InstaPrism_obj,
 
         stopifnot(all(cell.types.to.update %in% cell.types.env))
 
-        cat('update reference for-user defined cell types \n')
+        cat('update reference for user defined cell types \n')
       }
 
       # update cell.types.to.update with Z_env
@@ -1012,5 +1030,4 @@ get_Z_array = function(InstaPrism_obj,resolution = 'ct',n.core = 1){
   }
   return(Z)
 }
-
 

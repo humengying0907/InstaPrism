@@ -23,12 +23,14 @@ knitr::opts_chunk$set(
 ## Introduction
 **InstaPrism** is R package to deconvolute cellular proportion and gene expression in bulk RNA-Seq data. Based on the same conceptual framework and corresponding generative mode from [BayesPrism](https://github.com/Danko-Lab/BayesPrism), **InstaPrism** re-implements BayesPrism in a derandomized framework by replacing the time-consuming Gibbs sampling steps in BayesPrism with a fixed-point algorithm, which greatly accelerated the calculation speed while maintaining highly comparable performance. \
 
-This tutorial is associated the latest version of InstaPrism (InstaPrism v0.1.4), which contains the following key modifications:
+This tutorial is associated the latest version of InstaPrism (InstaPrism v0.1.5), which contains the following key modifications:
 
-* eliminates the dependency of BayesPrism-based updateReference module
-* allows for selective reference update for cell.type of interest
 * introduces a 2-dimensional scaler matrix that can be used to reconstruct any cell.type specific expression of interest, as a memory-efficient alternative to the original 3-d Z array 
-* enables the output of cell-type-specific expression using the updated reference
+* enables cell-type-specific expression deconvolution with the updated reference
+* adds **build-in reference** tailored for a wide range of cancer types
+* introduces `get_Z_array()` function to retrieve 3-d cell type specific expression array (sample $\times$ genes $\times$ cell.type)
+* introduces `get_loglikelihood_trace()` function to visualize model's log likelihood over iterations
+* introduces `get_subcluster()` function to identify subcluster structures within each cell type, can be used to specify cell-state information
 * `InstaPrism()` function associated with previous tutorial (InstaPrism v0.1.3) can be accessed using the `InstaPrism_legacy()` function\
 
 In this tutorial, we provide three examples of running **InstaPrism** and compare the results with BayesPrism.
@@ -155,7 +157,12 @@ Under this setting, users need to pass a pre-defined `refPhi` object containing 
 * **cell.type.labels**: a character vector indicating cell types of each cell from the scRNA data
 * **cell.state.labels**: a character vector indicating cell states of each cell from the scRNA data
 
-Alternatively, users can use the the pre-built `refPhi` object we provided for different tumor types (will come out soon). \
+The resulting `refPhi` object contains the following information:
+
+* **phi.cs**: cell state specific reference
+* **phi.ct**: cell type specific reference (this information is only required for BayesPrism based reference update)
+* **map**: a list with mapping information from cell.states to cell.types 
+
 The advantage of using `refPhi` as input is that one doesn't need to load the large single cell expression matrix every time, and the `refPhi` object can be easily re-implemented once built. 
 
 ```{r,results='hide'}
@@ -167,11 +174,17 @@ InstaPrism.res3 = InstaPrism(input_type = 'refPhi',bulk_Expr = bulk_Expr,refPhi 
 elapsed3 = toc()
 ```
 
-**4. InstaPrism with `input_type = 'refPhi_cs'` (advanced practice)**
+**4. InstaPrism with `input_type = 'refPhi_cs'` (recommended)**
 
-Using `refPhi_cs` provides a more versatile setting where users can selectively choose which cell-states to include for deconvolution.
+Under this setting, users need to specify a pre-defined `refPhi_cs` object which can be built by
+```{r,eval=FALSE}
+refPhi_cs_obj = refPrepare(sc_Expr, cell_type_labels, cell_state_labels,ref_type = 'refPhi_cs')
+InstaPrism.res = InstaPrism(input_type = 'refPhi_cs',bulk_Expr = bulk_Expr,refPhi = refPhi_cs_obj)
+```
 
-Given a pre-built `refPhi` object, users can modify it easily by selectively include cell-states for evaluation. For example, given the `refPhi` object we built in the previous section, if we only want to include `Neurons_subA` and `Neurons_subB` as cell states of interest, and remove `Neurons_subC` from Neurons, we could: 
+Alternatively, users can use the **built-in reference** provided by [InstaPrism](https://github.com/humengying0907/InstaPrism), which are all in `refPhi_cs` format. \
+
+Using `refPhi_cs` provides a more versatile setting where users can selectively choose which cell-states to include for deconvolution. For example, given the `refPhi` object we built in the previous section, if we only want to include `Neurons_subA` and `Neurons_subB` as cell states of interest, and remove `Neurons_subC` from Neurons, we can: 
 
 ```{r,results='hide'}
 refPhi_cs_map = refPhi_obj@map
@@ -223,7 +236,7 @@ deconv_performance_plot(est = InstaPrism.res@Post.ini.ct@theta,true = sim.data$p
 
 **2. compare cell type fraction estimates from InstaPrism and BayesPrism**
 
-We can visualize the correlation between two fraction estimates with a heatmap. As shown by the heatmap, cell.type estimates from both methods are highly correlated 
+We can visualize the correlation between two fraction estimates with a heatmap. As shown by the heatmap, cell.type estimates from both methods are highly correlated. 
 
 ```{r}
 corr=cor(t(InstaPrism.res@Post.ini.ct@theta),bp.res@posterior.initial.cellType@theta)
@@ -235,7 +248,6 @@ ComplexHeatmap::Heatmap(corr,show_row_dend = F,show_column_dend = F,column_title
 
 **3. running time comparison**
 InstaPrism significantly accelerates the deconvolution speed in either modes.
-
 
 ```{r,fig.align='center',fig.width=4.8,fig.height=3.3}
 InstaPrism_mode1_running_time = as.numeric(elapsed1$toc-elapsed1$tic)
@@ -303,6 +315,19 @@ In **InstaPrism**, we present a more versatile `InstaPrism_update()` function fo
 * **key** name of the malignant cell type. Upon setting the key parameter, the updated malignant reference will be unique for each individual. Set to NA if there is no malignant cells in the problem, and the updated reference will be the same for all the individuals
 * **keep.phi**: either 'phi.ct' or 'phi.cs', denoting whether using phi.ct or phi.cs for cell.types that are not updated. \
 
+
+`InstaPrism_update()` returns an S4 object containing the following objects:
+
+* **theta**: cell state/type abundance matrix
+* **psi_mal**: a gene $\times$ sample reference matrix for malignant cells, where each column represents the malignant reference for a corresponding sample; the psi_mal will be a NA matrix if no malignant cells present in the problem
+* **psi_env**: reference matrix for the non-malignant cells
+* **scaler**: a gene $\times$ sample matrix to reconstruct any cell.type specific expression of interest
+* **map**: a list with mapping information from cell.states to cell.types
+* **updated.cell.types** a vector indicating cell.types with updated reference; equals to NULL if no environmental (non-malignant) cell.types being updated
+* **key**: the `key` argument passed to `InstaPrism_update()` function
+* **keep.phi**: the `keep.phi` argument passed to `InstaPrism_update()` function
+
+Among these objects, the 'theta' matrix exclusively holds the deconvolution results of interest, while the remaining objects are only required for Z reconstruction. \
 
 **1. Reference update using InstaPrism_update()**
 
@@ -389,25 +414,12 @@ Z = get_Z_array(InstaPrism.res.updated,resolution = 'ct',n.core = 16)
 
 In the above examples we only considered a simple scenario where we update all the cell.types present. In real practice, we may want to update only specific cell.types, such as those exhibiting high cross-sample heterogeneity, while retaining the scRNA based reference for the remaining cell types. In such cases, users need to specify the `keep.phi` argument, indicating whether to use phi.ct or phi.cs for cell.types that are not updated. \
 
-`InstaPrism_update()` returns an S4 object containing the following objects:
-
-* **theta**: cell state/type abundance matrix
-* **psi_mal**: a gene $\times$ sample reference matrix for malignant cells, where each column represents the malignant reference for a corresponding sample; the psi_mal will be a NA matrix if no malignant cells present in the problem
-* **psi_env**: reference matrix for the non-malignant cells
-* **scaler**: a gene $\times$ sample matrix to reconstruct any cell.type specific expression of interest
-* **map**: a list with mapping information from cell.states to cell.types
-* **updated.cell.types** a vector indicating cell.types with updated reference; equals to NULL if no environmental (non-malignant) cell.types being updated
-* **key**: the `key` argument passed to `InstaPrism_update()` function
-* **keep.phi**: the `keep.phi` argument passed to `InstaPrism_update()` function
-
-Among these objects, the 'theta' matrix exclusively holds the deconvolution results of interest, while the remaining objects are only required for Z reconstruction. \
 
 Since either `phi.ct` or `phi.cs` can be used for the cell.types that are not being updated, the `theta` matrix can be a mixture of abundance estimates for both cell.types and cell.states. To merge any cell.state information to cell.type levels, users can utilize the convenient `merge_updated_theta()` function for this purpose. Note that is function is only applicable when `keep.phi = 'phi.cs'`
 
 ```{r,eval=FALSE}
 updated_ct = merge_updated_theta(InstaPrism.res.updated)
 ```
-
 
 ## Example 2: deconvolution on the tutorial data from BayesPrism
 \
@@ -478,7 +490,7 @@ tic()
 InstaPrism.res.initial = InstaPrism(input_type = 'prism',prismObj = bp.res@prism, n.iter = 100, n.core = 16)
 
 # 2. reconstruct cell.type specific expression with the initial reference (optional)
-Z_tumor_ct_initial = reconstruct_Z_ct_initial(InstaPrism.res.initial,cell.type.of.interest = 'tumor',n.core = 16)
+Z_ct_initial = get_Z_array(InstaPrism.res.initial,resolution = 'ct',n.core = 16)
 
 # 3. update reference & get deconovlution results from the updated reference
 updated_obj = InstaPrism_update(InstaPrism.res.initial, 
@@ -489,12 +501,17 @@ updated_obj = InstaPrism_update(InstaPrism.res.initial,
                                 key = 'tumor')
 
 # 4. reconstruct cell.type specific expression with the updated reference (optional)
-Z_tumor_ct_updated = reconstruct_Z_ct_updated(updated_obj,cell.type.of.interest = 'tumor',n.core = 16)
+Z_ct_updated = get_Z_array(updated_obj, resolution = 'ct', n.core = 16)
 ```
 
 ```{r}
 elp = toc()
 ```
+
+```{r,include=FALSE,eval=FALSE}
+save(InstaPrism.res.initial,updated_obj,file ='extdata/tutorial_example2/InstaPrism_res.RData')
+```
+
 
 #### Step 3. Compare deconvolution results
 
@@ -513,8 +530,8 @@ Two tumor-specific expression matrix are near identical
 
 ```{r}
 # tumor specific expression from BayesPrism
-Z_tumor_ct_initial_bp = t(bp.res@posterior.initial.cellType@Z[,,'tumor'])
-all.equal(Z_tumor_ct_initial,Z_tumor_ct_initial_bp)
+Z_tumor_ct_initial_bp = bp.res@posterior.initial.cellType@Z[,,'tumor']
+all.equal(Z_ct_initial[,,'tumor'],Z_tumor_ct_initial_bp)
 ```
 
 **3. cell.type fraction comparison (with updated reference)**
@@ -599,76 +616,6 @@ deconv_performance_plot(est = InstaPrism.res@Post.ini.ct@theta,true = t(simulate
 ```
 InstaPrism achieves reasonable cell.type estimates for the simulated bulk samples.\
 
-#### Step 4. Reference update for malignant cells only
-
-For heterogeneous populations like tumors, it is sometimes beneficial to leverage information from the bulk samples to generate an updated reference that is tailored to each individual, while retaining scRNA based reference for other populations. \
-
-In the following section, we will compare the selective reference update strategy with the universal reference update strategy implemented in BayesPrism. 
-
-**selective reference update with InstaPrism**
-
-```{r,results='hide'}
-updated_res = InstaPrism_update(InstaPrism.res,bulk_Expr = simulated_bulk,cell.types.to.update = NULL,key = 'malignant')
-
-library(tibble)
-
-initial.corr=diag(cor(t(InstaPrism.res@Post.ini.ct@theta[colnames(simulated_frac),]),simulated_frac)) %>% as.data.frame() %>% rownames_to_column('cell_type')
-
-updated.corr = diag(cor(t(updated_res@theta[colnames(simulated_frac),]),simulated_frac)) %>% as.data.frame() %>% rownames_to_column('cell_type')
-
-df_InstaPrism=rbind(initial.corr,updated.corr)  %>% rename('correlation'='.') %>% mutate(method=c(rep('with initial reference',9),rep('with updated reference',9)))
-
-```
-
-**reference update with BayesPrism**
-```{r,eval=FALSE}
-myPrism <- new.prism(
-  reference=t(scExpr_train), 
-  mixture=t(simulated_bulk),
-  input.type="count.matrix", 
-  cell.type.labels = cell.type.labels, 
-  cell.state.labels = cell.state.labels,
-  key="malignant",
-  outlier.cut=0.01,
-  outlier.fraction=0.1,
-)
-bp.res <- run.prism(prism = myPrism, n.cores=16)
-save(bp.res,file = 'extdata/tutorial_example3/bp.res.RData')
-```
-
-Alternatively, users can load our processed results directly.
-```{r}
-load('extdata/tutorial_example3/bp.res.RData')
-```
-
-```{r}
-initial.corr=diag(cor(bp.res@posterior.initial.cellType@theta[,colnames(simulated_frac)],simulated_frac)) %>% as.data.frame() %>% rownames_to_column('cell_type')
-updated.corr=diag(cor(bp.res@posterior.theta_f@theta[,colnames(simulated_frac)],simulated_frac)) %>% as.data.frame() %>% rownames_to_column('cell_type')
-
-df_bp=rbind(initial.corr,updated.corr)  %>% rename('correlation'='.') %>% mutate(method=c(rep('with initial reference',9),rep('with updated reference',9)))
-```
-
-
-```{r,fig.align='center',fig.width=10,fig.height=3}
-require(gridExtra)
-plot1 <-ggplot(df_InstaPrism,aes(x = cell_type, y = correlation, group = method)) +
-  geom_line(aes(color=method))+
-  geom_point(aes(color=method))+
-  ggtitle('selective reference update by InstaPrism')+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
-        plot.title = element_text(hjust = 0.5))
-plot2 <- ggplot(df_bp,aes(x = cell_type, y = correlation, group = method)) +
-  geom_line(aes(color=method))+
-  geom_point(aes(color=method))+
-  ggtitle('reference update with BayesPrism')+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
-        plot.title = element_text(hjust = 0.5))
-grid.arrange(plot1, plot2, ncol=2)
-```
-
-Through a comparison of two reference update strategies, we observed that selectively choosing the malignant population to update the reference resulted in all cell type estimates achieving a Pearson correlation greater than 0.85. In contrast, the reference update strategy employed in BayesPrism failed to improve deconvolution estimates for the 'Endothelial' population.
 
 ## A complete InstaPrism deconvolution framework
 
@@ -677,10 +624,10 @@ We present the following framework to run deconvolution with InstaPrism
 ##### 1. get initial deconvolution results using scRNA based reference
 Depending on input types, initial deconvolution results can be obtained through:
 ```{r,eval=FALSE}
-InstaPrism.res.initial = InstaPrism(input_type = 'raw',sc_Expr,bulk_Expr,cell.type.labels,cell.state.labels)
-InstaPrism.res.initial = InstaPrism(input_type = 'prism',prismObj)
-InstaPrism.res.initial = InstaPrism(input_type = 'refPhi',bulk_Expr, refPhi) 
-InstaPrism.res.initial = InstaPrism(input_type = 'refPhi_cs',bulk_Expr, refPhi_cs)
+InstaPrism.res.initial = InstaPrism(input_type = 'raw',sc_Expr,bulk_Expr,cell.type.labels,cell.state.labels,n.core = 16)
+InstaPrism.res.initial = InstaPrism(input_type = 'prism',prismObj,n.core = 16)
+InstaPrism.res.initial = InstaPrism(input_type = 'refPhi',bulk_Expr, refPhi,n.core = 16) 
+InstaPrism.res.initial = InstaPrism(input_type = 'refPhi_cs',bulk_Expr, refPhi_cs,n.core = 16)
 ```
 
 `InstaPrism()` function returns an S4 object containing the following information:
@@ -700,39 +647,46 @@ Z_cs_initial = reconstruct_Z_cs_initial(InstaPrism.res.initial,cell.state.of.int
 Z_ct_initial = reconstruct_Z_ct_initial(InstaPrism.res.initial,cell.type.of.interest)
 ```
 
-`reconstruct_Z_cs_initial()` and `reconstruct_Z_ct_initial()` returns a gene $\times$ sample matrix containing cell-state or cell-type specific expression information.
+`reconstruct_Z_cs_initial()` and `reconstruct_Z_ct_initial()` returns a gene $\times$ sample matrix containing cell-state or cell-type specific expression information. \
+
+Alternatively, use `get_Z_array()` to get the 3-d cell.state/cell.type specific expression:
+```{r}
+Z_cs_initial = get_Z_array(InstaPrism.res.initial,resolution = 'cs')
+Z_ct_initial = get_Z_array(InstaPrism.res.initial,resolution = 'ct')
+```
+
 
 ##### 3. update reference & get deconovlution results from the updated reference
 ```{r,eval=FALSE}
 updated_obj = InstaPrism_update(InstaPrism.res.initial, 
                                 bulk_Expr,
-                                cell.types.to.update, 
-                                key,
-                                keep.phi)
+                                cell.types.to.update = 'all', 
+                                key = 'tumor',
+                                n.core = 16)
 ```
 
 `updated_obj@theta` contains cell state/type abundance estimates, while the remaining objects returned by `InstaPrism_update()` is for Z reconstruction only. 
 
 ##### 4. merge cell.state level theta to cell.type level  (optional)
-When `updated_obj@theta` contains cell.state abundance esimates, one can use `merge_updated_theta()` function to merge any cell.state information to cell.type levels.
+When `updated_obj@theta` contains cell.state abundance estimates, one can use `merge_updated_theta()` function to merge any cell.state information to cell.type levels.
 ```{r,eval=FALSE}
 updated_ct = merge_updated_theta(updated_obj)
 ```
 
 ##### 5. reconstruct cell.type specific expression with the updated reference (optional)
 ```{r,eval=FALSE}
-Z_ct_updated = reconstruct_Z_ct_updated(updated_obj,cell.type.of.interest)
+Z_ct_updated = get_Z_array(updated_obj,n.core = 16)
 ```
 
 ## Additional notes on InstaPrism parameters
 So far we have demonstrated the primary usage of **InstaPrism**, mostly with the default parameters. In real practice, some of the default parameters can be tailored to meet the users' specific requirements.
 
 * **n.iter**: number of iterations in InstaPrism algorithm.  
-`n.iter` is an important parameter for InstaPrism algorithm. InstaPrism updates the fraction estimates over iterations and `n.iter` determines how many iterations are performed. Under default setting, this value is set to *max(20, number of cell.states $\times$ 2)*. However, users can set it to larger values to improve convergence. Specifically, we included two additional parameters that help to verify the convergence status: *verbose* and *convergence.plot*.
+`n.iter` is an important parameter for InstaPrism algorithm. InstaPrism updates the fraction estimates over iterations and `n.iter` determines how many iterations are performed. Under default setting, this value is set to *max(100, number of cell.states $\times$ 2)*. However, users can set it to larger values to improve convergence. Specifically, we included two additional parameters that help to verify the convergence status: *verbose* and *convergence.plot*.
 
 * **verbose**: a logical variable to determine whether to display convergence status of the model.   
 By setting `verbose = T`, `InstaPrsim()` will print the convergence status summary for both cell.states and cell.types.  
-Specifically, the absolute difference in fraction estimates between the last two iterations is utilized as an indicator of convergence (abs_diff), with smaller values indicating convergence and higher confidence of the deconvolution results. 
+Specifically, the absolute difference in fraction estimates between the last two iterations is utilized as an indicator of convergence (abs_diff), with smaller values indicating convergence and higher confidence of the deconvolution results.
 Using `example3.RData` as a demonstration, by setting `verbose = T`, we get a summarized table showing the minimum, median and maximum abs_diff for all cell.states/types across the samples. Usually we consider abs_diff < 0.01 as convergence. 
 
 ```{r}
@@ -757,7 +711,6 @@ InstaPrism.res = InstaPrism(input_type = 'raw',sc_Expr = scExpr_train,bulk_Expr 
                             cell.type.labels = cell.type.labels, cell.state.labels = cell.state.labels, 
                             n.iter = 100,n.core = 16,convergence.plot=T,max_n_per_plot = 100)
 ```
-
 
 * **n.core**: number of cores to use for parallel programming. We recommend setting this parameter to higher value when multiple cores are available. InstaPrism functions that support parallel programming include: `InstaPrism()`, `InstaPrism_update()`, `reconstruct_Z_ct_initial()`, `reconstruct_Z_ct_updated()` and `InstaPrism_legacy()`.
 

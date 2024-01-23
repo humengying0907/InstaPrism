@@ -13,7 +13,10 @@ Suggests:
     rmarkdown,
     ggplot2,
     ggpmisc,
-    snowfall
+    snowfall,
+    scran,
+    Seurat,
+    SCISSORS
 VignetteBuilder: knitr
 RoxygenNote: 7.2.3
 Depends: 

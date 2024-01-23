@@ -9,5 +9,6 @@ InstaPrism.Rproj
 src/*.o
 src/*.so
 src/*.dll
-
+InstaPrism_tutorial.html
+InstaPrism_tutorial.Rmd
 
