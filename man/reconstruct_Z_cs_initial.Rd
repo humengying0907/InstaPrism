@@ -7,11 +7,14 @@
 reconstruct_Z_cs_initial(
   InstaPrism_obj,
   cell.state.of.interest,
+  n.core = 1,
   pseudo.min = 1e-08
 )
 }
 \arguments{
 \item{InstaPrism_obj}{an InstaPrism object from InstaPrism() function}
+
+\item{n.core}{number of cores to use for parallel programming. Default = 1}
 
 \item{pseudo.min}{pseudo.min value to replace zero for normalization. Default = 1E-8}
 

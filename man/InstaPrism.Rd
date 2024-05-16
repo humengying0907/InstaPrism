@@ -5,7 +5,7 @@
 \title{Run InstaPrism deconvolution}
 \usage{
 InstaPrism(
-  input_type = c("raw", "prism", "refPhi", "refPhi_cs"),
+  input_type = c("raw", "prism", "refPhi_cs"),
   sc_Expr = NULL,
   bulk_Expr = NULL,
   cell.type.labels = NULL,
@@ -15,7 +15,6 @@ InstaPrism(
   outlier.fraction = 0.1,
   pseudo.min = 1e-08,
   prismObj = NULL,
-  refPhi = NULL,
   refPhi_cs = NULL,
   n.iter = NULL,
   verbose = F,
@@ -25,10 +24,9 @@ InstaPrism(
 )
 }
 \arguments{
-\item{input_type}{one of the following input_types are allowed: 'raw', 'prism', 'refPhi' and 'refPhi_cs'.
+\item{input_type}{one of the following input_types are allowed: 'raw', 'prism' and 'refPhi_cs'.
 With 'raw', need to specify the following input manually: sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels.
-With 'prism', need to provide a prism object. With 'refPhi', need to provide refPhi and bulk_Expr.
-With 'refPhi_cs', need to provide refPhi_cs and bulk Expr}
+With 'prism', need to provide a prism object. With 'refPhi_cs', need to provide refPhi_cs and bulk Expr}
 
 \item{sc_Expr}{single cell expression matrix (without log transformation), with genes in rows and cells in columns, required when input_type = T}
 
@@ -51,8 +49,6 @@ dominated by outliers. This parameter denotes the same thing as in new.prism() f
 \item{pseudo.min}{pseudo.min value to replace zero for normalization. Default = 1E-8}
 
 \item{prismObj}{a Prism object, required when input_type='prism'}
-
-\item{refPhi}{a refPhi object with single cell reference phi information, required when input_type='refPhi'}
 
 \item{refPhi_cs}{a refPhi_cs object with single cell reference phi information (cell state only), required when input_type='refPhi_cs'}
 

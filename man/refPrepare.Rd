@@ -4,13 +4,7 @@
 \alias{refPrepare}
 \title{function to make refPhi from single cell}
 \usage{
-refPrepare(
-  sc_Expr,
-  cell.type.labels,
-  cell.state.labels,
-  ref_type = "refPhi",
-  pseudo.min = 1e-08
-)
+refPrepare(sc_Expr, cell.type.labels, cell.state.labels, pseudo.min = 1e-08)
 }
 \arguments{
 \item{sc_Expr}{single cell expression with genes in rows and cells in columns}
@@ -18,8 +12,6 @@ refPrepare(
 \item{cell.type.labels}{a character vector indicating cell types of each cell}
 
 \item{cell.state.labels}{a character vector indicating cell state of each cell}
-
-\item{ref_type}{a character indicating refPhi type. Available options are 'refPhi' and 'refPhi_cs'}
 
 \item{pseudo.min}{pseudo.min value to replace zero for normalization. Default = 1E-8}
 }

@@ -57,7 +57,6 @@ setClassUnion("posterior.obj",
 setClass('initial_reference',slots = c(phi.cs = 'matrix',
                                        phi.ct = 'matrix'))
 
-
 #' InstaPrism output class
 #' @slot Post.ini.cs cell state abundance matrix (theta)
 #' @slot Post.ini.ct cell type abundance matrix (theta)

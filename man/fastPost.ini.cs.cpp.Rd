@@ -17,5 +17,5 @@ fastPost.ini.cs.cpp(bulk_Expr, ref, n.iter, n.core = 1)
 }
 \description{
 Fixed-point implementation of the initial Gibbs sampling step in BayesPrism.
-     Returns a list of posterior estimation of cell-state fraction and expression.
+     Returns a list of posterior estimation both cell-state fraction and expression.
 }

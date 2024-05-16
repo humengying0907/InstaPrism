@@ -3,7 +3,7 @@
 
 #' Fast posterior estimation of cell-state fractions and expression
 #' @description Fixed-point implementation of the initial Gibbs sampling step in BayesPrism.
-#'      Returns a list of posterior estimation of cell-state fraction and expression.
+#'      Returns a list of posterior estimation both cell-state fraction and expression.
 #' @param bulk_Expr bulk expression (un-log transformed) matrix with genes in rows and samples in columns
 #' @param ref single cell reference summarized at per cell-type or per cell-state level
 #' @param n.iter number of iterations.
