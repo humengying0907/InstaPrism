@@ -29,9 +29,13 @@ Depends:
     NMF,
     pheatmap,
     abind,
-    pbapply
+    pbapply,
+    BiocManager
 Imports: 
-    Rcpp (>= 1.0.5)
+    Rcpp (>= 1.0.5),
+    Biobase
 LinkingTo: 
     RcppArmadillo, 
     Rcpp
+Additional_repositories: https://bioconductor.org/packages/release/bioc
+
