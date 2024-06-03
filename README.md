@@ -5,10 +5,13 @@
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
-BiocManager::install("Biobase")
+if (!require("Biobase", quietly = TRUE))
+    BiocManager::install("Biobase")
 
-library("devtools");
-install_github("humengying0907/InstaPrism")
+if (!require("devtools", quietly = TRUE))
+    install.packages("devtools")
+
+devtools::install_github("humengying0907/InstaPrism")
 ```````
 ## Deconvolution with InstaPrism
 Quick start with the following example
