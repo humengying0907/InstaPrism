@@ -1,5 +1,6 @@
 # InstaPrism
-**InstaPrism** is an R package for cell type composition and gene expression deconvolution in bulk RNA-Seq data. Based on the same conceptual framework and corresponding generative mode from [BayesPrism](https://github.com/Danko-Lab/BayesPrism), **InstaPrism** re-implements BayesPrism in a derandomized framework by replacing the time-consuming Gibbs sampling steps in BayesPrism with a fixed-point algorithm, which greatly accelerated the calculation speed while maintaining highly comparable performance.
+**InstaPrism** is an R package for cell type composition and gene expression deconvolution in bulk RNA-Seq data. Based on the same conceptual framework as [BayesPrism](https://github.com/Danko-Lab/BayesPrism), InstaPrism significantly increases calculation speed while providing nearly identical deconvolution results.
+
 ## Installation
 ```````
 if (!require("BiocManager", quietly = TRUE))
@@ -15,7 +16,7 @@ devtools::install_github("humengying0907/InstaPrism")
 ```````
 ## Deconvolution with InstaPrism
 Quick start with the following example
-```````
+```````R
 # bulk input with genes in rows and samples in columns; this example data is from ovarian cancer
 bulk_expr = read.csv(system.file('extdata','example_bulk.csv',package = 'InstaPrism')) 
 
@@ -35,8 +36,7 @@ head(Z[,1:10,'malignant'])
 ```````
 
 ## Deconvolution results comparison with BayesPrism
-Using either scRNA-based reference (update = F) or updated reference (update = T), InstaPrism achieves identical deconvolution results as BayesPrism. Below is the deconvolution results comparison using the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) 
-provided in BayesPrism. 
+Using either scRNA-based reference (update = F) or updated reference (update = T), InstaPrism achieves nearly identical deconvolution results as BayesPrism.
 
 <img src="https://github.com/humengying0907/InstaPrism/assets/54827603/36c6cfa1-308c-4a0b-adc2-bf4b6399139b" width=60% height=60%>
 
