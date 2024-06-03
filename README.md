@@ -2,6 +2,11 @@
 **InstaPrism** is an R package for cell type composition and gene expression deconvolution in bulk RNA-Seq data. Based on the same conceptual framework and corresponding generative mode from [BayesPrism](https://github.com/Danko-Lab/BayesPrism), **InstaPrism** re-implements BayesPrism in a derandomized framework by replacing the time-consuming Gibbs sampling steps in BayesPrism with a fixed-point algorithm, which greatly accelerated the calculation speed while maintaining highly comparable performance.
 ## Installation
 ```````
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("Biobase")
+
 library("devtools");
 install_github("humengying0907/InstaPrism")
 ```````
