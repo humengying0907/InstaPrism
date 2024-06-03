@@ -2,7 +2,7 @@
 % Please edit documentation in R/InstaPrism.R
 \name{refPrepare}
 \alias{refPrepare}
-\title{function to make refPhi from single cell}
+\title{Create reference profile using single cell data}
 \usage{
 refPrepare(sc_Expr, cell.type.labels, cell.state.labels, pseudo.min = 1e-08)
 }
@@ -15,6 +15,18 @@ refPrepare(sc_Expr, cell.type.labels, cell.state.labels, pseudo.min = 1e-08)
 
 \item{pseudo.min}{pseudo.min value to replace zero for normalization. Default = 1E-8}
 }
+\value{
+a refPhi_cs object that can be pass to the `InstaPrsim()` function
+}
 \description{
-function to make refPhi from single cell
+De novo reference construction using scRNA-seq data
+}
+\examples{
+\dontrun{
+library(Biobase)
+data("sim.data")
+scExpr = exprs(sc.eset)
+cell_type_labels = pData(sc.eset)$cellType
+refPhi_obj = refPrepare(sc_Expr = scExpr, cell.type.labels = cell_type_labels, cell.state.labels = cell_type_labels)
+}
 }

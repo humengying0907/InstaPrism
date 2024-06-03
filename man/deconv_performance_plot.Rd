@@ -5,26 +5,26 @@
 \title{Visualize deconvolution performance}
 \usage{
 deconv_performance_plot(
-  est,
-  true,
+  truth_frac,
+  estimated_frac,
   title = NULL,
-  nrow = 2,
+  nrow = 1,
   xlabel = "true fraction",
   ylabel = "estimates"
 )
 }
 \arguments{
-\item{est}{cell.type fraction estimation with cell.types in rows and samples in columns}
+\item{truth_frac}{ground truth cell-type fractions with samples in rows and cell-types in columns}
 
-\item{true}{ground truth cell.type fraction with cell.types in rows and samples in columns}
+\item{estimated_frac}{cell-type fraction estimates with samples in rows and cell-types in columns}
 
 \item{title}{title for the plot}
 
-\item{nrow}{number of rows in the plot grid}
+\item{nrow}{number of rows in the plot grid. Default = 1}
 
-\item{xlabel}{xlabel of the plot}
+\item{xlabel}{xlabel of the plot. Default = 'true fraction'}
 
-\item{ylabel}{ylabel of the plot}
+\item{ylabel}{ylabel of the plot. Default = 'estimates'}
 }
 \description{
 Visualize per-cell type correlation between true fraction and estimates

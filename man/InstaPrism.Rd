@@ -5,38 +5,29 @@
 \title{Run InstaPrism deconvolution}
 \usage{
 InstaPrism(
-  input_type = c("raw", "prism", "refPhi_cs"),
-  sc_Expr = NULL,
-  bulk_Expr = NULL,
-  cell.type.labels = NULL,
-  cell.state.labels = NULL,
+  bulk_Expr,
+  refPhi_cs,
+  n.iter = NULL,
   filter = TRUE,
   outlier.cut = 0.01,
   outlier.fraction = 0.1,
   pseudo.min = 1e-08,
-  prismObj = NULL,
-  refPhi_cs = NULL,
-  n.iter = NULL,
   verbose = F,
   convergence.plot = F,
   max_n_per_plot = 50,
-  n.core = 1
+  n.core = 1,
+  input_type = "refPhi_cs",
+  prismObj = NULL
 )
 }
 \arguments{
-\item{input_type}{one of the following input_types are allowed: 'raw', 'prism' and 'refPhi_cs'.
-With 'raw', need to specify the following input manually: sc_Expr, bulk_Expr, cell.type.labels, cell.state.labels.
-With 'prism', need to provide a prism object. With 'refPhi_cs', need to provide refPhi_cs and bulk Expr}
+\item{bulk_Expr}{bulk expression to deconvolve (without log transformation), with genes in rows and samples in columns}
 
-\item{sc_Expr}{single cell expression matrix (without log transformation), with genes in rows and cells in columns, required when input_type = T}
+\item{refPhi_cs}{a reference object with single cell derived prior information}
 
-\item{bulk_Expr}{bulk expression to deconvolute (without log transformation), with genes in rows and samples in columns}
+\item{n.iter}{number of iterations in InstaPrism algorithm. Default = max(100, number of cell.states * 2)}
 
-\item{cell.type.labels}{a character vector indicating cell types of each cell in sc_Expr}
-
-\item{cell.state.labels}{a character vector indicating cell states of each cell in sc_Expr}
-
-\item{filter}{a logical vatiable to determine whether to filter genes in bulk_Expr or not}
+\item{filter}{a logical vatiable to determine whether to filter genes in bulk_Expr or not. Default = TRUE}
 
 \item{outlier.cut}{Filter genes in bulk mixture whose expression fraction is greater than outlier.cut (Default=0.01)
 in more than outlier.fraction (Default=0.01) of bulk data. Removal of outlier genes will ensure that the inference will not be
@@ -48,24 +39,29 @@ dominated by outliers. This parameter denotes the same thing as in new.prism() f
 
 \item{pseudo.min}{pseudo.min value to replace zero for normalization. Default = 1E-8}
 
-\item{prismObj}{a Prism object, required when input_type='prism'}
-
-\item{refPhi_cs}{a refPhi_cs object with single cell reference phi information (cell state only), required when input_type='refPhi_cs'}
-
-\item{n.iter}{number of iterations in InstaPrism algorithm. Default = max(100, number of cell.states * 2)}
-
 \item{verbose}{a logical variable determining whether to display convergence status of the model. Default = F}
 
-\item{convergence.plot}{a logical variable determining whether to visualize convergence status for cell types}
+\item{convergence.plot}{a logical variable determining whether to visualize convergence status for cell types. Default = F}
 
-\item{max_n_per_plot}{max number of samples to visualize in one convergence plot}
+\item{max_n_per_plot}{max number of samples to visualize in one convergence plot. Default = 50}
 
 \item{n.core}{number of cores to use for parallel programming. Default = 1}
+
+\item{input_type}{a character vector indicting the input type. Set to 'prism' when passing a prism object for deconvolution. Default = 'refPhi_cs'}
+
+\item{prismObj}{a Prism object constructed from BayesPrism::new.prism(), only required when input_type='prism'.
+If a Prism object is provided, the parameters `bulk_Expr` and `refPhi_cs` are not required}
 }
 \value{
-an InstaPrism object containing posterior information for cell states and cell types
+an InstaPrism object containing posterior estimates of cell type fractions and gene expression
 }
 \description{
-A fast version of BayesPrism deconvolution, takes single cell profiles as prior information
-     and returns cellular composition estimation for a bulk expression matrix.
+Cell type composition and gene expression deconvolution with InstaPrism.
+}
+\examples{
+\dontrun{
+bulk_expr = read.csv(system.file('extdata','example_bulk.csv',package = 'InstaPrism'))
+OV_ref = InstaPrism_reference('OV') # load InstaPrism built-in reference
+deconv_res = InstaPrism(bulk_Expr = bulk_expr,refPhi_cs = OV_ref)
+}
 }

@@ -10,9 +10,17 @@ merge_updated_theta(InstaPrism_updated_obj)
 \item{InstaPrism_updated_obj}{an InstaPrism_updated_obj from InstaPrism_update() function}
 }
 \value{
-fraction estimation at cell.type level
+fraction estimation at cell type level
 }
 \description{
-InstaPrism_updated_obj contains cell.state level fraction estimation when keep.phi = 'phi.cs',
-    this function merges cell.state level theta to cell.type level.
+Get updated posterior estimates of cell type fractions when theta returns by InstaPrism_update() contains cell state information
+}
+\examples{
+\dontrun{
+bulk_expr = read.csv(system.file('extdata','example_bulk.csv',package = 'InstaPrism'))
+OV_ref = InstaPrism_reference('OV') # load InstaPrism built-in reference
+deconv_res = InstaPrism(bulk_Expr = bulk_expr,refPhi_cs = OV_ref)
+updated_res = InstaPrism_update(deconv_res,bulk_expr,key = 'malignant',cell.types.to.update = NULL)
+theta.ct = merge_updated_theta(updated_res)
+}
 }

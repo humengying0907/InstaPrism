@@ -14,8 +14,16 @@ get_Z_array(InstaPrism_obj, resolution = "ct", n.core = 1)
 \item{n.core}{number of cores to use for parallel programming. Default = 1}
 }
 \value{
-a gene by cell.type(state) 3d Z array
+a sample by gene by cell.type/cell.state 3d Z array
 }
 \description{
-obtain sampleID by gene by cell.type/cell.state 3d Z array
+Obtains a 3-dimensional array of deconvolved gene expression with dimensions sample * gene * cell-type/cell-state.
+}
+\examples{
+\dontrun{
+bulk_expr = read.csv(system.file('extdata','example_bulk.csv',package = 'InstaPrism'))
+OV_ref = InstaPrism_reference('OV') # load InstaPrism built-in reference
+deconv_res = InstaPrism(bulk_Expr = bulk_expr,refPhi_cs = OV_ref)
+Z = get_Z_array(deconv_res)
+}
 }

@@ -244,7 +244,7 @@ InstaPrism_legacy<-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
 
     map=bp@map
     bulk_mixture=bp@bulk_mixture
-    initial.reference = new('initial_reference',
+    initial.reference = new('initial_reference_full',
                             phi.cs = bp@phi.cs,
                             phi.ct = bp@phi.ct)
     cms = intersect(rownames(bp@bulk_mixture),rownames(bp@phi.cs))
@@ -266,7 +266,7 @@ InstaPrism_legacy<-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
     map=prismObj@map
     bulk_mixture=t(prismObj@mixture)
 
-    initial.reference = new('initial_reference',
+    initial.reference = new('initial_reference_full',
                             phi.cs = t(prismObj@phi_cellState@phi),
                             phi.ct = t(prismObj@phi_cellType@phi))
     cms = intersect(colnames(prismObj@mixture),colnames(prismObj@phi_cellState@phi))
@@ -296,7 +296,7 @@ InstaPrism_legacy<-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
 
     map=bp@map
     bulk_mixture=bp@bulk_mixture
-    initial.reference = new('initial_reference',
+    initial.reference = new('initial_reference_full',
                             phi.cs = bp@phi.cs,
                             phi.ct = bp@phi.ct)
     cms = intersect(rownames(bp@bulk_mixture),rownames(bp@phi.cs))
@@ -325,7 +325,7 @@ InstaPrism_legacy<-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
     map=bp@map
     bulk_mixture=bp@bulk_mixture
 
-    initial.reference = new('initial_reference',
+    initial.reference = new('initial_reference_full',
                             phi.cs = bp@phi.cs,
                             phi.ct = matrix(NA))
 
@@ -554,5 +554,4 @@ InstaPrism_legacy<-function(input_type=c('raw','prism','refPhi','refPhi_cs'),
                updated.reference=updated_phi))
   }
 }
-
 

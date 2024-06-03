@@ -47,6 +47,15 @@ setClass('theta',
 setClassUnion("posterior.obj",
               c("theta","posterior"))
 
+
+#' an S4 class object with scRNA based reference matrix
+#'
+#' @slot phi.cs matrix.
+#' @keywords internal
+#' @noRd
+#'
+setClass('initial_reference',slots = c(phi.cs = 'matrix'))
+
 #' an S4 class object with scRNA based reference matrix
 #'
 #' @slot phi.cs matrix.
@@ -54,8 +63,12 @@ setClassUnion("posterior.obj",
 #' @keywords internal
 #' @noRd
 #'
-setClass('initial_reference',slots = c(phi.cs = 'matrix',
+setClass('initial_reference_full',slots = c(phi.cs = 'matrix',
                                        phi.ct = 'matrix'))
+
+setClassUnion("initial.reference.obj",
+              c("initial_reference","initial_reference_full"))
+
 
 #' InstaPrism output class
 #' @slot Post.ini.cs cell state abundance matrix (theta)
@@ -69,7 +82,7 @@ setClass('initial_reference',slots = c(phi.cs = 'matrix',
 setClass("InstaPrism",slots = c(Post.ini.cs='posterior.obj',
                                 Post.ini.ct='posterior.obj',
                                 map='list',
-                                initial.reference = 'initial_reference',
+                                initial.reference = 'initial.reference.obj',
                                 initial.scaler = 'matrix'))
 
 #' InstaPrism_update output class
@@ -82,7 +95,6 @@ setClass("InstaPrism",slots = c(Post.ini.cs='posterior.obj',
 #' @slot map a list with mapping information from cell.states to cell.types
 #' @slot updated.cell.types a vector indicating cell.types with updated reference;
 #'    equals to NULL if no environmental (non-malignant) cell.types being updated
-#' @slot keep.phi character indicating whether phi.ct or phi.cs is used for the cell.types are not updated
 #' @keywords internal
 #' @noRd
 #'
@@ -92,8 +104,7 @@ setClass('InstaPrism_update',slots = c(theta = 'matrix',
                                        scaler = 'matrix',
                                        map = 'list',
                                        updated.cell.types = 'updated.cell.types',
-                                       key = 'key',
-                                       keep.phi = 'character'))
+                                       key = 'key'))
 
 setClassUnion("updated.cell.types",
               c("character","NULL"))
@@ -114,7 +125,7 @@ setClassUnion("key",
 setClass("InstaPrism_legacy",slots = c(Post.ini.cs='posterior.obj',
                                        Post.ini.ct='posterior.obj',
                                        map='list',
-                                       initial.reference = 'initial_reference'))
+                                       initial.reference = 'initial.reference.obj'))
 
 #' S4 class to store (non-malignant) reference matrix phi or psi (if no malignant cells)
 #' @description this corresponds to the refPhi class in BayesPrism package
@@ -224,10 +235,6 @@ setClass('InstaPrismExtra',slots = c(Post.ini.cs='posterior.obj',
                                      Post.ini.ct='posterior.obj',
                                      Post.updated.ct='posterior.obj',
                                      map='list',
-                                     initial.reference = 'initial_reference',
+                                     initial.reference = 'initial.reference.obj',
                                      updated.reference = 'updated_reference'))
-
-
-
-
 

@@ -1,12 +1,34 @@
 # InstaPrism
-**InstaPrism** is R package to deconvolute cellular proportion and gene expression in bulk RNA-Seq data. Based on the same conceptual framework and corresponding generative mode from [BayesPrism](https://github.com/Danko-Lab/BayesPrism), **InstaPrism** re-implements BayesPrism in a derandomized framework by replacing the time-consuming Gibbs sampling steps in BayesPrism with a fixed-point algorithm, which greatly accelerated the calculation speed while maintaining highly comparable performance.
+**InstaPrism** is an R package for cell type composition and gene expression deconvolution in bulk RNA-Seq data. Based on the same conceptual framework and corresponding generative mode from [BayesPrism](https://github.com/Danko-Lab/BayesPrism), **InstaPrism** re-implements BayesPrism in a derandomized framework by replacing the time-consuming Gibbs sampling steps in BayesPrism with a fixed-point algorithm, which greatly accelerated the calculation speed while maintaining highly comparable performance.
 ## Installation
 ```````
 library("devtools");
 install_github("humengying0907/InstaPrism")
 ```````
+## Deconvolution with InstaPrism
+Quick start with the following example
+```````
+# bulk input with genes in rows and samples in columns; this example data is from ovarian cancer
+bulk_expr = read.csv(system.file('extdata','example_bulk.csv',package = 'InstaPrism')) 
+
+# load built-in reference; choose a reference that matches the tumor type of the bulk input
+OV_ref = InstaPrism_reference('OV') 
+
+# deconvolution with InstaPrism
+deconv_res = InstaPrism(bulk_Expr = bulk_expr,refPhi_cs = OV_ref)
+
+# The deconvoled cell type fraction is now accessible with
+estimated_frac = t(deconv_res@Post.ini.ct@theta)
+head(estimated_frac)
+
+# InstaPrism also returns the deconvolved gene expression Z
+Z = get_Z_array(deconv_res) # a sample by gene by cell-type array
+head(Z[,1:10,'malignant'])
+```````
+
 ## Deconvolution results comparison with BayesPrism
-Using either scRNA-based reference (update = F) or updated reference (update = T), InstaPrism achieves identical deconvolution results as BayesPrism.
+Using either scRNA-based reference (update = F) or updated reference (update = T), InstaPrism achieves identical deconvolution results as BayesPrism. Below is the deconvolution results comparison using the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) 
+provided in BayesPrism. 
 
 <img src="https://github.com/humengying0907/InstaPrism/assets/54827603/36c6cfa1-308c-4a0b-adc2-bf4b6399139b" width=60% height=60%>
 
@@ -17,17 +39,15 @@ provided in BayesPrism.
 <img src="https://github.com/humengying0907/InstaPrism/assets/54827603/8e158249-9cc9-4f06-8e89-63867540bfc6" width=45% height=45%>
 
 ## Memory Comparison with BayesPrism
-InstaPrism significantly reduced the memory required to store the deconvolution project, when running deconvolution on the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) 
+InstaPrism significantly reduced the memory usaged during deconvolution. Below is a memory usage comparsion when running deconvolution on the tutorial [data](https://github.com/Danko-Lab/BayesPrism/tree/main/tutorial.dat) 
 provided in BayesPrism. 
 
 <img src="https://github.com/humengying0907/InstaPrism/assets/54827603/3d9c8b8b-8aac-4c4b-b793-e64c33cac752" width=45% height=45%>
 
 ## Built-in Reference for InstaPrism
-We have provided precompiled reference tailored for a wide range of cancer types. Download the reference from the link below and use the following code to run deconvolution.
+We have provided precompiled reference tailored for a wide range of cancer types. The reference can be downloaded directly using the download link below, or loaded directly using the following command
  ```````
-# take BRCA_refPhi for example
-BRCA_refPhi = readRDS("BRCA_refPhi.RDS")
-InstaPrism.res = InstaPrism(input_type = 'refPhi_cs', bulk_Expr = bulk_expr,refPhi_cs = BRCA_refPhi, n.core = 16)
+BRCA_ref = InstaPrism_reference('BRCA')
 ```````
 
 
@@ -43,10 +63,10 @@ InstaPrism.res = InstaPrism(input_type = 'refPhi_cs', bulk_Expr = bulk_expr,refP
 | SKCM_refPhi    | skin cutaneous melanoma          | 4,645                                      | 8/23                             |[UMAP](https://www.weizmann.ac.il/sites/3CA/study-data/umap/20111)      | [Tirosh et al. 2016](https://www.science.org/doi/10.1126/science.aad0501) | [↓](https://github.com/humengying0907/InstaPrismSourceCode/raw/main/refPhi/SKCM_refPhi.RDS) |
 
 ## Reference evaluation pipeline
-To validate the performance of a reference, or compare between different references, please refer to the [Reference_evalu_pipeline](https://github.com/humengying0907/InstaPrismSourceCode) we developed.
+To validate the performance of a reference, or to compare between different references, please refer to the [Reference_evalu_pipeline](https://github.com/humengying0907/InstaPrismSourceCode) we developed.
 
 ## Tutorial
-Check [InstaPrism_tumorial](https://humengying0907.github.io/InstaPrism_tutorial.html) for detailed implementation of InstaPrism and compare its performance with BayesPrism.
+Check [InstaPrism_tutorial](https://humengying0907.github.io/InstaPrism_tutorial.html) for detailed implementation of InstaPrism and compare its performance with BayesPrism.
 
 ## Reference
 M. Hu and M. Chikina, “InstaPrism: an R package for fast implementation of BayesPrism.” bioRxiv, p. 2023.03.07.531579, Mar. 12, 2023.

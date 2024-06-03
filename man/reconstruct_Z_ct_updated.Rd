@@ -2,7 +2,7 @@
 % Please edit documentation in R/InstaPrism.R
 \name{reconstruct_Z_ct_updated}
 \alias{reconstruct_Z_ct_updated}
-\title{Reconstruct cell.type specific expression using the updated reference}
+\title{Reconstruct cell-type specific expression using the updated reference}
 \usage{
 reconstruct_Z_ct_updated(
   InstaPrism_updated_obj,
@@ -24,5 +24,14 @@ reconstruct_Z_ct_updated(
 a gene * sample matrix with cell.type specific expression
 }
 \description{
-Reconstruct cell.type specific expression using the updated reference
+Reconstruct cell-type specific expression using the updated reference
+}
+\examples{
+\dontrun{
+bulk_expr = read.csv(system.file('extdata','example_bulk.csv',package = 'InstaPrism'))
+OV_ref = InstaPrism_reference('OV') # load InstaPrism built-in reference
+deconv_res = InstaPrism(bulk_Expr = bulk_expr,refPhi_cs = OV_ref)
+updated_res = InstaPrism_update(deconv_res,bulk_expr,key = 'malignant')
+Z_mal_updated = reconstruct_Z_ct_updated(updated_res,'malignant')
+}
 }

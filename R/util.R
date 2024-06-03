@@ -47,27 +47,31 @@ filter.bulk.outlier <- function(mixture,
 #'
 #' @param scExpr single cell expression matrix with genes in rows and cells in columns
 #' @param cell_type_labels a vector indicating cell-type level annotations
-#' @param subcluster_method subclustering methods to use. Available options include 'scran' and 'SCISSORS'. Default = 'scran'.
-#' @param min.subcluster.size min.size parameter passed to scran::quickCluster(). Default = 20.
+#' @param subcluster_method subclustering methods to use. Available options include 'scran' and 'SCISSORS'. Default = 'scran'
+#' @param min.subcluster.size min.size parameter passed to scran::quickCluster(). Default = 100
 #' @param CalculateSilhouette a logical variable determine whether Silhouette score need to be calculated to determine which cell-types to be reclustered. Default = T. When set to FALSE, will
 #'    recluster every cell type present in 'cell_type_labels'
 #' @param SilhouetteScores.cutoff a cutoff determining which cell-types to be reclustered with 'SCISSORS' method. Cell-types with SilhouetteScores greater than this
-#'    cutoff will not be reclustered.
+#'    cutoff will not be reclustered
 #' @param ... additional parameters pass to SCISSORS::ReclusterCells()
 #'
-#' @return a vector of subclustering labels
+#' @return a vector of subclustering labels, which can be pass to `refPrepare()` function for reference construction
 #' @export
 #'
 get_subcluster = function(scExpr,cell_type_labels,
                           subcluster_method = 'scran',
-                          min.subcluster.size = 20,
+                          min.subcluster.size = 100,
                           CalculateSilhouette = T,
                           SilhouetteScores.cutoff = 0.7,...){
 
   cell_type_labels = as.vector(cell_type_labels)
 
   if (subcluster_method == 'scran'){
-    require(scran,quietly = T) %>% suppressMessages()
+    if(!requireNamespace("scran", quietly = TRUE)){
+      stop("The 'scran' package is not installed. Please install the scran package using the following command and try again: \n",'BiocManager::install("scran")')
+    }else{
+      library(scran)
+    }
 
     stopifnot(ncol(scExpr)==length(cell_type_labels))
 
@@ -91,8 +95,14 @@ get_subcluster = function(scExpr,cell_type_labels,
     subcluster_IDtable = subcluster_IDtable[order(subcluster_IDtable$id),]
     return(subcluster_IDtable$label)
   }else if(subcluster_method == 'SCISSORS'){
-    require(Seurat) %>% suppressMessages()
-    require(SCISSORS) %>% suppressMessages()
+
+    if(!requireNamespace("SCISSORS", quietly = TRUE)){
+      stop("The 'SCISSORS' package is not installed. Please install the SCISSORS package using the following command and try again: \n",'remotes::install_github("jr-leary7/SCISSORS")')
+    }else{
+      library(SCISSORS)
+    }
+    require(Seurat)
+    require(SCISSORS)
     seurat_obj = CreateSeuratObject(counts = scExpr)
     seurat_obj <- NormalizeData(seurat_obj, normalization.method = "LogNormalize", scale.factor = 10000)
     seurat_obj <- FindVariableFeatures(seurat_obj,selection.method = "vst", nfeatures = 5000)
@@ -155,6 +165,6 @@ get_subcluster = function(scExpr,cell_type_labels,
       return(seurat_obj$subcluster)
     }
   }else{
-    stop('please provide valid subcluster method')
+    stop('please provide a valid subcluster method')
   }
 }

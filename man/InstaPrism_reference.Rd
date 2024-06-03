@@ -12,7 +12,7 @@ InstaPrism_reference(refName, download_locally = F)
 \item{download_locally}{a logical variable to determine whether to download the reference to the local working directory. Default = F}
 }
 \value{
-an refPhi_cs object that can be pass to the InstaPrism() function with `input_type = 'refPhi_cs'`
+an refPhi_cs object that can be pass to the `InstaPrism()` function with `input_type = 'refPhi_cs'`
 }
 \description{
 Load InstaPrism built-in reference and/or download the reference locally

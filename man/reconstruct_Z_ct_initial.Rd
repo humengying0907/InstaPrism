@@ -2,7 +2,7 @@
 % Please edit documentation in R/InstaPrism.R
 \name{reconstruct_Z_ct_initial}
 \alias{reconstruct_Z_ct_initial}
-\title{Reconstruct cell.type specific expression from initial.reference}
+\title{Reconstruct cell-type specific expression from an InstaPrism object}
 \usage{
 reconstruct_Z_ct_initial(
   InstaPrism_obj,
@@ -24,5 +24,14 @@ reconstruct_Z_ct_initial(
 a gene * sample matrix with cell.type specific expression
 }
 \description{
-build cell.type specific expression, which is equivalent to Z of Post.ini.ct object from InstaPrism() function
+Reconstruct cell-type specific expression from an InstaPrism object
+}
+\examples{
+\dontrun{
+bulk_expr = read.csv(system.file('extdata','example_bulk.csv',package = 'InstaPrism'))
+OV_ref = InstaPrism_reference('OV') # load InstaPrism built-in reference
+deconv_res = InstaPrism(bulk_Expr = bulk_expr,refPhi_cs = OV_ref)
+# get malignant-specific gene expression
+Z_mal = reconstruct_Z_ct_initial(deconv_res,'malignant')
+}
 }

@@ -1,11 +1,11 @@
 Package: InstaPrism
 Type: Package
-Title: Fast implementaion of BayesPrism for cell type and gene expression deconvolution
-Version: 0.1.5
+Title: Fast implementaion of BayesPrism for cell type composition and gene expression deconvolution
+Version: 0.1.6
 Author: Mengying Hu, Maria Chikina
 Maintainer: Mengying <mhu5304@gmail.com>
-Description: InstaPrism is R package to deconvolute cellular proportion and gene expression in bulk RNA-Seq data. It is based on a Bayesian inference model from BayesPrism. InstaPrism provides fast implementation of the deconvolution module from BayesPrism: it replaces the time-consuming gibbs sampling steps in BayesPrism with a fixed-point algorithm that greatly accelerated the calculation speed while maintaining similar performance as BayesPrism. 
-License: GPL-2 | GPL-3
+Description: InstaPrism is an R package for cell type composition and gene expression deconvolution in bulk RNA-Seq data. It is based on a Bayesian framework from BayesPrism. InstaPrism provides fast implementation of the deconvolution module from BayesPrism: it replaces the time-consuming gibbs sampling steps in BayesPrism with a fixed-point algorithm that greatly accelerated the calculation speed while maintaining similar performance as BayesPrism. 
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Suggests: 
@@ -16,9 +16,10 @@ Suggests:
     snowfall,
     scran,
     Seurat,
-    SCISSORS
+    SCISSORS,
+    tibble
 VignetteBuilder: knitr
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
 Depends: 
     R (>= 3.5.0),
     dplyr,

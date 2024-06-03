@@ -7,11 +7,10 @@
 InstaPrism_update(
   InstaPrism_obj,
   bulk_Expr,
+  key,
   n.iter = 100,
   n.core = 1,
   cell.types.to.update = "all",
-  key = NA,
-  keep.phi = "phi.cs",
   pseudo.min = 1e-08
 )
 }
@@ -20,17 +19,14 @@ InstaPrism_update(
 
 \item{bulk_Expr}{bulk expression to deconvolute (without log transformation), with genes in rows and samples in columns}
 
+\item{key}{name of the malignant cell type. Upon setting the key parameter, the updated malignant reference will be unique for each individual.
+Set to NA if there is no malignant cells in the problem, and the updated reference will be the same for all the individuals}
+
 \item{n.iter}{number of iterations in InstaPrism algorithm. Default = 100}
 
 \item{n.core}{number of cores to use for parallel programming. Default = 1}
 
-\item{cell.types.to.update}{non-malignant cell.types to update. Default = 'all'. Set to NULL if only need to update the 'key' cell.type.}
-
-\item{key}{name of the malignant cell type. Upon setting the key parameter, the updated malignant reference will be unique for each individual.
-Set to NA if there is no malignant cells in the problem, and the updated reference will be the same for all the individuals}
-
-\item{keep.phi}{either 'phi.ct' or 'phi.cs', denoting whether using phi.ct or phi.cs for cell.types that are not updated.
-Only applicable when there are cell-types don't need to be updated}
+\item{cell.types.to.update}{non-malignant cell types to update. Default = 'all'. Set to NULL if only need to update the 'key' cell-type}
 
 \item{pseudo.min}{pseudo.min value to replace zero for normalization. Default = 1E-8}
 }
@@ -38,5 +34,13 @@ Only applicable when there are cell-types don't need to be updated}
 an InstaPrism_update object
 }
 \description{
-fast and memory-saving ways to update reference and get the updated deconvolution results
+Fast and memory-saving way to update reference and get the updated deconvolution results
+}
+\examples{
+\dontrun{
+bulk_expr = read.csv(system.file('extdata','example_bulk.csv',package = 'InstaPrism'))
+OV_ref = InstaPrism_reference('OV') # load InstaPrism built-in reference
+deconv_res = InstaPrism(bulk_Expr = bulk_expr,refPhi_cs = OV_ref)
+updated_res = InstaPrism_update(deconv_res,bulk_expr,key = 'malignant')
+}
 }

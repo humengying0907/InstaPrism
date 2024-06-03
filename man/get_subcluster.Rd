@@ -8,7 +8,7 @@ get_subcluster(
   scExpr,
   cell_type_labels,
   subcluster_method = "scran",
-  min.subcluster.size = 20,
+  min.subcluster.size = 100,
   CalculateSilhouette = T,
   SilhouetteScores.cutoff = 0.7,
   ...
@@ -19,20 +19,20 @@ get_subcluster(
 
 \item{cell_type_labels}{a vector indicating cell-type level annotations}
 
-\item{subcluster_method}{subclustering methods to use. Available options include 'scran' and 'SCISSORS'. Default = 'scran'.}
+\item{subcluster_method}{subclustering methods to use. Available options include 'scran' and 'SCISSORS'. Default = 'scran'}
 
-\item{min.subcluster.size}{min.size parameter passed to scran::quickCluster(). Default = 20.}
+\item{min.subcluster.size}{min.size parameter passed to scran::quickCluster(). Default = 100}
 
 \item{CalculateSilhouette}{a logical variable determine whether Silhouette score need to be calculated to determine which cell-types to be reclustered. Default = T. When set to FALSE, will
 recluster every cell type present in 'cell_type_labels'}
 
 \item{SilhouetteScores.cutoff}{a cutoff determining which cell-types to be reclustered with 'SCISSORS' method. Cell-types with SilhouetteScores greater than this
-cutoff will not be reclustered.}
+cutoff will not be reclustered}
 
 \item{...}{additional parameters pass to SCISSORS::ReclusterCells()}
 }
 \value{
-a vector of subclustering labels
+a vector of subclustering labels, which can be pass to `refPrepare()` function for reference construction
 }
 \description{
 Given single-cell expression and cell-type labels, return sub-clustering labels for each cell type. Currently supported

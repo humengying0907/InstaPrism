@@ -2,7 +2,7 @@
 % Please edit documentation in R/InstaPrism.R
 \name{reconstruct_Z_cs_initial}
 \alias{reconstruct_Z_cs_initial}
-\title{Reconstruct cell.state specific expression from initial.reference}
+\title{Reconstruct cell-state specific expression from an InstaPrism object}
 \usage{
 reconstruct_Z_cs_initial(
   InstaPrism_obj,
@@ -24,5 +24,5 @@ reconstruct_Z_cs_initial(
 a gene * sample matrix with cell.state specific expression
 }
 \description{
-build cell.state specific expression, which is equivalent to Z of Post.ini.ct object from InstaPrism() function
+Reconstruct cell-state specific expression from an InstaPrism object
 }
